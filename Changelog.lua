@@ -1,0 +1,55 @@
+---------------------------------------------------------------------------------------
+--                                    PATCH NOTES                                    --
+---------------------------------------------------------------------------------------
+-- Shown on the Patch Notes page of the settings window. Newest first.
+local _G = _G
+local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+
+TR.Changelog = {
+  {
+    version = "0.1.2",
+    date = "2026-11-06",
+    notes = {
+      "New Reticle HUD: arcs around the crosshair show your health and power on the left and your target's health and cast on the right. The target arc glows when an enemy is in execute range.",
+      "HUD Size & Position: size from 25% to 200%, thin, normal or thick arcs, background ring strength, and horizontal and vertical offsets. Pips can sit below, above, left or right, with adjustable distance, spacing and size, and no longer overlap the arcs.",
+      "Live preview of the crosshair, arcs and pips at the top of the HUD Size & Position settings.",
+      "Show HUD: only in combat (default), in combat or with a target, or always.",
+      "Class resource pips under the crosshair: combo points, holy power, soul shards, chi, arcane charges, essence and runes.",
+      "Hit and kill feedback: a hit marker flashes on the crosshair when you deal damage (bigger and gold on crits), and a red marker with a glow when your enemy dies.",
+      "New Smart Crosshair: the crosshair turns green in melee range, yellow in ranged range and red when nothing reaches. Range spells are picked from your spellbook automatically, or you can set your own.",
+      "Crosshair hide rules: show always, only in combat or only with an enemy target, and hide in flight form, when idle, without a target, on friendly or dead targets, or when out of range.",
+      "Combat opacity: separate crosshair opacity in and out of combat.",
+      "Head tracking: the crosshair follows your character's head height as you zoom in and out.",
+      "Screen effects: purple screen edges while stealthed and red pulsing edges at low health.",
+      "New Situational Camera (off by default): zoom, shoulder offset, head movement and field of view change by situation. 16 situations: dead, flight path, skyriding, NPC dialogue, PvP, boss, combat, dungeon, stealth, swimming, vehicle, mounted, sitting, fishing, indoors and world.",
+      "Skyriding zoom grows with your speed, and the camera slowly orbits around you while you /sit, /kneel or /sleep.",
+      "New Profiles: HUD, Smart Crosshair and Camera settings are saved in profiles. Create, copy, reset and delete profiles, and use a different profile per specialization.",
+      "Preview buttons for the HUD, hit, crit and kill markers and the low health effect.",
+      "Settings window: new HUD & Camera section, Profiles page, color pickers and a Profile card on Home."
+    }
+  },
+  {
+    version = "0.1.1",
+    date = "2026-11-06",
+    notes = {
+      "New settings window: sidebar navigation, Home page with quick actions, Patch Notes, theme and panel scale.",
+      "New option: Show Target Circle (Reticle Targeting, on by default). Turns the circle under your target back on at every login, including on WoW: Forever.",
+      "New True Reticle logo (addon list icon, settings window and About page).",
+      "True Reticle colors are now green to match the logo."
+    }
+  },
+  {
+    version = "0.1.0",
+    date = "2026-11-06",
+    notes = {
+      "First release of True Reticle.",
+      "Supports Retail Midnight (12.1.5) and WoW: Forever from one download.",
+      "Free Look: turn the camera with the mouse without holding right click (toggle or hold keybind).",
+      "Reticle Targeting: aim the crosshair at enemies to target them; @mouseover and @cursor macros work with the crosshair.",
+      "Mouse Click Casting: free your mouse buttons to cast up to 8 abilities while Free Look is on.",
+      "Cursor Unlock: the cursor is released automatically when bags, map, character panel and other windows open.",
+      "Action Camera preset, shoulder offset, sticky crosshair and 13 crosshair styles.",
+      "Crosshair colors are safe with Midnight secret values in dungeons, raids and combat."
+    }
+  }
+}

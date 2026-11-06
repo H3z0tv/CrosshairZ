@@ -1,0 +1,10 @@
+<Bindings>
+	<Binding name="TRUERETICLE_TOGGLE" header="TRUERETICLE" category="ADDONS">
+		TrueReticle_ToggleKey()
+	</Binding>
+	<Binding name="TRUERETICLE_HOLD" category="ADDONS" runOnUp="true">
+		if keystate == "down" or keystate == "up" then
+			TrueReticle_HoldKey(keystate)
+		end
+	</Binding>
+</Bindings>

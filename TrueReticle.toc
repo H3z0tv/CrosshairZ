@@ -1,0 +1,16 @@
+## Interface: 120105, 16001
+## Version: 0.1.2
+
+## Title: |cff7CFF4FTrue|r Reticle
+## Author: H3z0
+## Notes: Action-camera combat for World of Warcraft: free look, reticle targeting and mouse-click casting.
+## IconTexture: Interface\AddOns\TrueReticle\assets\trlogo
+
+## DefaultState: enabled
+## LoadOnDemand: 0
+## SavedVariables: TrueReticleDB
+
+## Category: Combat
+
+# Imports
+Embeds.xml

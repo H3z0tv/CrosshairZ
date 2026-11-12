@@ -16,9 +16,9 @@ local SaveBindings = _G.SaveBindings
 local SetBinding = _G.SetBinding
 
 -- RETRIEVING ADDON TABLE
-local TR = AceAddon:GetAddon("TrueReticle")
+local CZ = AceAddon:GetAddon("CrosshairZ")
 
-TR.Config = {}
+CZ.Config = {}
 
 ---------------------------------------------------------------------------------------
 --                                 COMPONENT ASSEMBLER                               --
@@ -84,7 +84,7 @@ local function Description(option, order)
     },
     reticle = {
       type = "description",
-      name = "\nEnable True Reticle to transform the default tab-targeting combat into an action-oriented experience, where the |cff00FFFFCrosshair|r dictates target acquisition.\n\n",
+      name = "\nEnable Crosshair Z to transform the default tab-targeting combat into an action-oriented experience, where the |cff00FFFFCrosshair|r dictates target acquisition.\n\n",
       fontSize = "medium",
       order = order
     },
@@ -135,15 +135,15 @@ local function GetButtonOverrideGroup(modifier, groupOrder)
         width = 0.4,
         order = 1,
         set = function(_, value)
-          TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].enabled = value
+          CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].enabled = value
           if value then
-            TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button1Settings])
+            CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings])
           else
-            TR.ResetBindingOverride(TR.DB[TR.GetBindingsLocation()].bindings[button1Settings])
+            CZ.ResetBindingOverride(CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings])
           end
         end,
         get = function()
-          return TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].enabled
+          return CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].enabled
         end,
         disabled = modifier == nil
       },
@@ -153,16 +153,16 @@ local function GetButtonOverrideGroup(modifier, groupOrder)
         type = "select",
         width = 1.5,
         order = 1.1,
-        values = TR.Constants.OverrideActions,
+        values = CZ.Constants.OverrideActions,
         set = function(_, value)
-          TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].value = value
-          TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button1Settings])
+          CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].value = value
+          CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings])
         end,
         get = function()
-          return TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].value
+          return CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].value
         end,
         disabled = function()
-          return not TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].enabled
+          return not CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].enabled
         end
       },
       spacing = Spacing(0.1, 1.2),
@@ -173,20 +173,20 @@ local function GetButtonOverrideGroup(modifier, groupOrder)
         width = 1.65,
         order = 1.3,
         set = function(_, value)
-          TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].macroName = value
-          TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button1Settings])
+          CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].macroName = value
+          CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings])
         end,
         get = function()
-          return TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].macroName
+          return CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].macroName
         end,
         disabled = function()
-          return not TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].enabled or
-                   TR.DB[TR.GetBindingsLocation()].bindings[button1Settings].value ~= "MACRO"
+          return not CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].enabled or
+                   CZ.DB[CZ.GetBindingsLocation()].bindings[button1Settings].value ~= "MACRO"
         end,
         validate = function(_, value)
-          if not TR.MacroExists(value) then
-            TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].macroName = ""
-            return TR.METADATA["TITLE"] .. "\n\n|cffcfcfcfNo macro found with that name.|r"
+          if not CZ.MacroExists(value) then
+            CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].macroName = ""
+            return CZ.METADATA["TITLE"] .. "\n\n|cffcfcfcfNo macro found with that name.|r"
           else
             return true
           end
@@ -205,15 +205,15 @@ local function GetButtonOverrideGroup(modifier, groupOrder)
         width = 0.4,
         order = 2,
         set = function(_, value)
-          TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].enabled = value
+          CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].enabled = value
           if value then
-            TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button2Settings])
+            CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings])
           else
-            TR.ResetBindingOverride(TR.DB[TR.GetBindingsLocation()].bindings[button2Settings])
+            CZ.ResetBindingOverride(CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings])
           end
         end,
         get = function()
-          return TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].enabled
+          return CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].enabled
         end,
         disabled = modifier == nil
       },
@@ -223,16 +223,16 @@ local function GetButtonOverrideGroup(modifier, groupOrder)
         type = "select",
         width = 1.5,
         order = 2.1,
-        values = TR.Constants.OverrideActions,
+        values = CZ.Constants.OverrideActions,
         set = function(_, value)
-          TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].value = value
-          TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button2Settings])
+          CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].value = value
+          CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings])
         end,
         get = function()
-          return TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].value
+          return CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].value
         end,
         disabled = function()
-          return not TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].enabled
+          return not CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].enabled
         end
       },
       spacing2 = Spacing(0.1, 2.2),
@@ -243,20 +243,20 @@ local function GetButtonOverrideGroup(modifier, groupOrder)
         width = 1.65,
         order = 2.3,
         set = function(_, value)
-          TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].macroName = value
-          TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button2Settings])
+          CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].macroName = value
+          CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings])
         end,
         get = function()
-          return TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].macroName
+          return CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].macroName
         end,
         disabled = function()
-          return not TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].enabled or
-                   TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].value ~= "MACRO"
+          return not CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].enabled or
+                   CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].value ~= "MACRO"
         end,
         validate = function(_, value)
-          if not TR.MacroExists(value) then
-            TR.DB[TR.GetBindingsLocation()].bindings[button2Settings].macroName = ""
-            return TR.METADATA["TITLE"] .. "\n\n|cffcfcfcfNo macro found with that name.|r"
+          if not CZ.MacroExists(value) then
+            CZ.DB[CZ.GetBindingsLocation()].bindings[button2Settings].macroName = ""
+            return CZ.METADATA["TITLE"] .. "\n\n|cffcfcfcfNo macro found with that name.|r"
           else
             return true
           end
@@ -284,8 +284,8 @@ end
 --                                     ABOUT                                     --
 ---------------------------------------------------------------------------------------
 local AboutOptions = {
-  name = TR.METADATA["TITLE"],
-  handler = TR,
+  name = CZ.METADATA["TITLE"],
+  handler = CZ,
   type = "group",
   args = {
     ---------------------------------------------------------------------------------------
@@ -294,13 +294,13 @@ local AboutOptions = {
     resetButton = {
       type = "execute",
       name = "Default",
-      desc = "Resets True Reticle's settings to their default values.",
-      confirmText = TR.METADATA["TITLE"] ..
-        "\n\n|cffcfcfcfResetting True Reticle's options to their default will force a |cffE52B50UI Reload|r.|r \n\n|cffffd700Proceed?|r",
+      desc = "Resets Crosshair Z's settings to their default values.",
+      confirmText = CZ.METADATA["TITLE"] ..
+        "\n\n|cffcfcfcfResetting Crosshair Z's options to their default will force a |cffE52B50UI Reload|r.|r \n\n|cffffd700Proceed?|r",
       confirm = true,
       width = 0.7,
       func = function()
-        TR:OnResetDB()
+        CZ:OnResetDB()
       end,
       order = 0
     },
@@ -311,10 +311,10 @@ local AboutOptions = {
       desc = "Enables the printing of state logs in the game chat to assist with development.",
       width = 0.7,
       set = function(_, value)
-        TR.DB.global.debugMode = value
+        CZ.DB.global.debugMode = value
       end,
       get = function()
-        return TR.DB.global.debugMode
+        return CZ.DB.global.debugMode
       end,
       order = 0.2
     },
@@ -327,7 +327,7 @@ local AboutOptions = {
       type = "description",
       name = " ",
       width = 0.5,
-      image = TR.Constants.Logo,
+      image = CZ.Constants.Logo,
       imageWidth = 64,
       imageHeight = 64,
       imageCoords = {
@@ -340,7 +340,7 @@ local AboutOptions = {
     },
     aboutDescription = {
       type = "description",
-      name = TR.METADATA["NOTES"],
+      name = CZ.METADATA["NOTES"],
       fontSize = "medium",
       width = 3.1,
       order = 1.3
@@ -362,12 +362,12 @@ local AboutOptions = {
     },
     versionNumber = {
       type = "description",
-      name = "|cffffffffVersion:|r " .. "|cff00ff00" .. TR.METADATA["VERSION"] .. "|r\n\n",
+      name = "|cffffffffVersion:|r " .. "|cff00ff00" .. CZ.METADATA["VERSION"] .. "|r\n\n",
       order = 3.2
     },
     authorsList = {
       type = "description",
-      name = "|cffcfcfcfTrue Reticle by H3z0|r\n\n",
+      name = "|cffcfcfcfCrosshair Z by H3z0|r\n\n",
       order = 3.3
     },
     spacing5 = Spacing("full", 5.1)
@@ -386,27 +386,27 @@ local CameraFeatures = {
   args = {
     actionCamera = {
       type = "toggle",
-      name = "Load True Reticle's |cffffd700Action Camera|r Preset |cffE37527•|r",
-      desc = "Configures Blizzard's |cffffd700Action Camera|r feature to a curated preset that better matches True Reticle's development environment. \n\n|cffE37527•|r |cff909090If detected, control of this feature will be relinquished to |cffE37527DynamicCam|r.|r \n\n|cffffd700Default:|r |cffE52B50Off|r",
+      name = "Load Crosshair Z's |cffffd700Action Camera|r Preset |cffE37527•|r",
+      desc = "Configures Blizzard's |cffffd700Action Camera|r feature to a curated preset that better matches Crosshair Z's development environment. \n\n|cffE37527•|r |cff909090If detected, control of this feature will be relinquished to |cffE37527DynamicCam|r.|r \n\n|cffffd700Default:|r |cffE52B50Off|r",
       width = "full",
       order = 1,
-      confirmText = TR.METADATA["TITLE"] ..
-        "\n\n|cffcfcfcfA |cffE52B50UI Reload|r is required when making changes to True Reticle's |cffffd700Action Camera|r Preset.|r \n\n|cffffd700Proceed?|r",
+      confirmText = CZ.METADATA["TITLE"] ..
+        "\n\n|cffcfcfcfA |cffE52B50UI Reload|r is required when making changes to Crosshair Z's |cffffd700Action Camera|r Preset.|r \n\n|cffffd700Proceed?|r",
       confirm = true,
       set = function(_, value)
-        TR.DB.global.actionCamera = value
+        CZ.DB.global.actionCamera = value
         if value then
-          TR.ConfigActionCamera("truereticle")
+          CZ.ConfigActionCamera("crosshairz")
         else
-          TR.ConfigActionCamera("blizzard")
+          CZ.ConfigActionCamera("blizzard")
         end
         ReloadUI()
       end,
       get = function()
-        return TR.DB.global.actionCamera
+        return CZ.DB.global.actionCamera
       end,
       disabled = function()
-        return TR.DynamicCam
+        return CZ.DynamicCam
       end
     },
     spacing = Spacing("full", 1.1),
@@ -422,14 +422,14 @@ local CameraFeatures = {
       width = 1.75,
       order = 2,
       set = function(_, value)
-        TR.DB.char.shoulderOffset = value
-        TR.SetShoulderOffset()
+        CZ.DB.char.shoulderOffset = value
+        CZ.SetShoulderOffset()
       end,
       get = function()
-        return TR.DB.char.shoulderOffset
+        return CZ.DB.char.shoulderOffset
       end,
       disabled = function()
-        return TR.DynamicCam or TR.DB.global.actionCamera ~= true
+        return CZ.DynamicCam or CZ.DB.global.actionCamera ~= true
       end
     },
     spacing3 = Spacing(0.15, 2.1),
@@ -445,22 +445,22 @@ local CameraFeatures = {
       width = 1.75,
       order = 3,
       set = function(_, value)
-        TR.DB.global.mouseLookSpeed = value
-        TR.SetMouseLookSpeed()
+        CZ.DB.global.mouseLookSpeed = value
+        CZ.SetMouseLookSpeed()
       end,
       get = function()
-        return TR.DB.global.mouseLookSpeed
+        return CZ.DB.global.mouseLookSpeed
       end,
       disabled = function()
-        return TR.DynamicCam
+        return CZ.DynamicCam
       end
     }
   }
 }
 
 local FreeLookOptions = {
-  name = TR.METADATA["TITLE"],
-  handler = TR,
+  name = CZ.METADATA["TITLE"],
+  handler = CZ,
   type = "group",
   args = {
     header = Header("freelook", 1),
@@ -472,15 +472,15 @@ local FreeLookOptions = {
       width = 1.25,
       order = 3,
       set = function(_, key)
-        local oldKey = (GetBindingKey("TRUERETICLE_TOGGLE"))
+        local oldKey = (GetBindingKey("CROSSHAIRZ_TOGGLE"))
         if oldKey then
           SetBinding(oldKey)
         end
-        SetBinding(key, "TRUERETICLE_TOGGLE")
+        SetBinding(key, "CROSSHAIRZ_TOGGLE")
         SaveBindings(GetCurrentBindingSet())
       end,
       get = function()
-        return (GetBindingKey("TRUERETICLE_TOGGLE"))
+        return (GetBindingKey("CROSSHAIRZ_TOGGLE"))
       end
     },
     hold = {
@@ -490,15 +490,15 @@ local FreeLookOptions = {
       width = 1.25,
       order = 4,
       set = function(_, key)
-        local oldKey = (GetBindingKey("TRUERETICLE_HOLD"))
+        local oldKey = (GetBindingKey("CROSSHAIRZ_HOLD"))
         if oldKey then
           SetBinding(oldKey)
         end
-        SetBinding(key, "TRUERETICLE_HOLD")
+        SetBinding(key, "CROSSHAIRZ_HOLD")
         SaveBindings(GetCurrentBindingSet())
       end,
       get = function()
-        return (GetBindingKey("TRUERETICLE_HOLD"))
+        return (GetBindingKey("CROSSHAIRZ_HOLD"))
       end
     },
     interact = {
@@ -527,26 +527,51 @@ local FreeLookOptions = {
       width = 2.1,
       order = 6,
       set = function(_, value)
-        TR.DB.global.pulseCursor = value
+        CZ.DB.global.pulseCursor = value
       end,
       get = function()
-        return TR.DB.global.pulseCursor
+        return CZ.DB.global.pulseCursor
       end
     },
-    hideTooltip = {
-      type = "toggle",
-      name = "Hide Tooltip During |cff7CFF4FMouse Look|r",
-      desc = "Hides the tooltip generated by the |cff00FFFFCrosshair|r while |cff7CFF4FMouse Look|r is active.\n\n|cffffd700Default:|r |cff00FF7FOn|r",
+    tooltipMode = {
+      type = "select",
+      name = "Tooltips During |cff7CFF4FMouse Look|r",
+      desc = "What happens to tooltips while Mouse Look is on.\n\nShow: the tooltip of whatever is under the crosshair.\n\nWhile holding a key: only while you hold Shift, Ctrl or Alt.\n\n|cffffd700Default:|r Hide",
       width = 1.5,
       order = 6.1,
+      values = {
+        hide = "Hide",
+        show = "Show",
+        shift = "Show while holding Shift",
+        ctrl = "Show while holding Ctrl",
+        alt = "Show while holding Alt"
+      },
       set = function(_, value)
-        TR.DB.global.hideTooltip = value
+        CZ.DB.global.tooltipMode = value
+        CZ.DB.global.hideTooltip = (value == "hide")
+        if CZ.Extras and CZ.Extras.RefreshTooltip then
+          CZ.Extras.RefreshTooltip()
+        end
       end,
       get = function()
-        return TR.DB.global.hideTooltip
+        return CZ.TooltipMode()
+      end
+    },
+    tooltipAnchor = {
+      type = "select",
+      name = "Tooltip Position",
+      desc = "Where the tooltip shows during Mouse Look: next to the crosshair, or where the game normally puts tooltips.",
+      width = 1.5,
+      order = 6.2,
+      values = {crosshair = "Next to the crosshair", default = "Game default position"},
+      set = function(_, value)
+        CZ.DB.global.tooltipAnchor = value
+      end,
+      get = function()
+        return CZ.DB.global.tooltipAnchor or "crosshair"
       end,
       disabled = function()
-        return TR.DB.global.crosshair ~= true
+        return CZ.TooltipMode() == "hide"
       end
     },
     spacing2 = Spacing("full", 7.1),
@@ -565,10 +590,10 @@ local FreeLookOptions = {
       width = 2.1,
       order = 12,
       set = function(_, value)
-        TR.DB.global.frameWatching = value
+        CZ.DB.global.frameWatching = value
       end,
       get = function()
-        return TR.DB.global.frameWatching
+        return CZ.DB.global.frameWatching
       end
     },
     mountCheck = {
@@ -578,10 +603,10 @@ local FreeLookOptions = {
       width = 1.5,
       order = 13,
       set = function(_, value)
-        TR.DB.global.mountCheck = value
+        CZ.DB.global.mountCheck = value
       end,
       get = function()
-        return TR.DB.global.mountCheck
+        return CZ.DB.global.mountCheck
       end
     },
     spacing6 = Spacing("full", 13.1),
@@ -593,17 +618,17 @@ local FreeLookOptions = {
       width = "full",
       order = 14,
       disabled = function()
-        return TR.DB.global.frameWatching ~= true
+        return CZ.DB.global.frameWatching ~= true
       end,
       set = function(_, input)
-        TR.DB.global.watchlist = {}
+        CZ.DB.global.watchlist = {}
         for value in string.gmatch(input, "[^,]+") do -- Split at the ", "
           value = value:gsub("^%s*(.-)%s*$", "%1") -- Trim spaces
-          table.insert(TR.DB.global.watchlist, value)
+          table.insert(CZ.DB.global.watchlist, value)
         end
       end,
       get = function()
-        local watchlist = TR.DB.global.watchlist or {}
+        local watchlist = CZ.DB.global.watchlist or {}
         return table.concat(watchlist, ", ")
       end
     }
@@ -627,15 +652,15 @@ local CrosshairGroup = {
       width = 2.04,
       order = 1,
       set = function(_, value)
-        TR.DB.global.crosshair = value
+        CZ.DB.global.crosshair = value
         if value then
-          TR.DisplayCrosshair(true)
+          CZ.DisplayCrosshair(true)
         else
-          TR.DisplayCrosshair(false)
+          CZ.DisplayCrosshair(false)
         end
       end,
       get = function()
-        return TR.DB.global.crosshair
+        return CZ.DB.global.crosshair
       end
     },
     crosshairMounted = {
@@ -645,13 +670,13 @@ local CrosshairGroup = {
       width = 1.4,
       order = 2,
       set = function(_, value)
-        TR.DB.global.crosshairMounted = value
+        CZ.DB.global.crosshairMounted = value
       end,
       get = function()
-        return TR.DB.global.crosshairMounted
+        return CZ.DB.global.crosshairMounted
       end,
       disabled = function()
-        return TR.DB.global.crosshair ~= true
+        return CZ.DB.global.crosshair ~= true
       end
     },
     stickyCrosshair = {
@@ -661,18 +686,18 @@ local CrosshairGroup = {
       width = 2.1,
       order = 3,
       set = function(_, value)
-        TR.DB.char.stickyCrosshair = value
+        CZ.DB.char.stickyCrosshair = value
         if value then
-          TR.ConfigStickyCrosshair("truereticle")
+          CZ.ConfigStickyCrosshair("crosshairz")
         else
-          TR.ConfigStickyCrosshair("blizzard")
+          CZ.ConfigStickyCrosshair("blizzard")
         end
       end,
       get = function()
-        return TR.DB.char.stickyCrosshair
+        return CZ.DB.char.stickyCrosshair
       end,
       disabled = function()
-        return TR.DynamicCam or TR.DB.global.crosshair ~= true
+        return CZ.DynamicCam or CZ.DB.global.crosshair ~= true
       end
     },
     spacing2 = Spacing("full", 3.1),
@@ -682,18 +707,18 @@ local CrosshairGroup = {
       type = "select",
       width = 1.4,
       order = 4,
-      values = TR.Constants.CrosshairAppearanceSelectValues,
+      values = CZ.Constants.CrosshairAppearanceSelectValues,
       set = function(_, value)
-        TR.DB.global.crosshairAppearance = TR.Constants.CrosshairTextureObj[value]
+        CZ.DB.global.crosshairAppearance = CZ.Constants.CrosshairTextureObj[value]
         if value then
-          TR.CreateCrosshair()
+          CZ.CreateCrosshair()
         end
       end,
       get = function()
-        return TR.DB.global.crosshairAppearance.Name
+        return CZ.DB.global.crosshairAppearance.Name
       end,
       disabled = function()
-        return TR.DB.global.crosshair ~= true
+        return CZ.DB.global.crosshair ~= true
       end
     },
     spacing3 = Spacing(0.1, 4.1),
@@ -703,7 +728,7 @@ local CrosshairGroup = {
       name = "",
       width = 0.25,
       image = function()
-        return TR.DB.global.crosshairAppearance.Base
+        return CZ.DB.global.crosshairAppearance.Base
       end,
       imageWidth = 42,
       imageHeight = 42
@@ -721,16 +746,16 @@ local CrosshairGroup = {
       width = 1.75,
       order = 7,
       disabled = function()
-        return TR.DB.global.crosshair ~= true
+        return CZ.DB.global.crosshair ~= true
       end,
       set = function(_, value)
-        TR.DB.global.crosshairSize = value
+        CZ.DB.global.crosshairSize = value
         if value then
-          TR.CreateCrosshair()
+          CZ.CreateCrosshair()
         end
       end,
       get = function()
-        return TR.DB.global.crosshairSize
+        return CZ.DB.global.crosshairSize
       end
     },
     spacing5 = Spacing("full", 6.1),
@@ -747,16 +772,16 @@ local CrosshairGroup = {
       order = 8,
       isPercent = true,
       disabled = function()
-        return TR.DB.global.crosshair ~= true
+        return CZ.DB.global.crosshair ~= true
       end,
       set = function(_, value)
-        TR.DB.global.crosshairOpacity = value
+        CZ.DB.global.crosshairOpacity = value
         if value then
-          TR.CreateCrosshair()
+          CZ.CreateCrosshair()
         end
       end,
       get = function()
-        return TR.DB.global.crosshairOpacity
+        return CZ.DB.global.crosshairOpacity
       end
     },
     spacing6 = Spacing(0.15, 7.1),
@@ -772,24 +797,24 @@ local CrosshairGroup = {
       width = 1.75,
       order = 6,
       disabled = function()
-        return TR.DB.global.crosshair ~= true
+        return CZ.DB.global.crosshair ~= true
       end,
       set = function(_, value)
-        TR.DB.global.crosshairY = value
+        CZ.DB.global.crosshairY = value
         if value then
-          TR.CreateCrosshair()
+          CZ.CreateCrosshair()
         end
       end,
       get = function()
-        return TR.DB.global.crosshairY
+        return CZ.DB.global.crosshairY
       end
     }
   }
 }
 
 local ReticleTargetingOptions = {
-  name = TR.METADATA["TITLE"],
-  handler = TR,
+  name = CZ.METADATA["TITLE"],
+  handler = CZ,
   type = "group",
   args = {
     header = Header("reticle", 1),
@@ -800,20 +825,20 @@ local ReticleTargetingOptions = {
       desc = "|cff3B73FF© Character-based option|r\n\nConfigures Blizzard's |cffffd700Action Targeting|r feature to be more precise and responsive. \n\n|cffFF5050Be aware that this will override all CVar values related to SoftTarget.|r \n\n|cff909090Uncheck to reset them to their default values.|r\n\n|cffffd700Default:|r |cff00FF7FOn|r",
       width = 2.1,
       order = 3,
-      confirmText = TR.METADATA["TITLE"] ..
+      confirmText = CZ.METADATA["TITLE"] ..
         "\n\n|cffcfcfcfA |cffE52B50UI Reload|r is required when making changes to |cff00FFFFReticle Targeting|r.|r \n\n|cffffd700Proceed?|r",
       confirm = true,
       set = function(_, value)
-        TR.DB.char.reticleTargeting = value
+        CZ.DB.char.reticleTargeting = value
         if value then
-          TR.ConfigReticleTargeting("truereticle")
+          CZ.ConfigReticleTargeting("crosshairz")
         else
-          TR.ConfigReticleTargeting("blizzard")
+          CZ.ConfigReticleTargeting("blizzard")
         end
         ReloadUI()
       end,
       get = function()
-        return TR.DB.char.reticleTargeting
+        return CZ.DB.char.reticleTargeting
       end
     },
     friendlyTargeting = {
@@ -823,21 +848,21 @@ local ReticleTargetingOptions = {
       width = 1.5,
       order = 4,
       confirm = true,
-      confirmText = TR.METADATA["TITLE"] ..
+      confirmText = CZ.METADATA["TITLE"] ..
         "\n\n|cffcfcfcfAllowing the reticle to target friendlies can, under certain conditions, cause a |cffE52B50Invalid Target|r bug. \n\n|cffffd700Proceed anyway?|r|r",
       set = function(_, value)
-        TR.DB.char.friendlyTargeting = value
+        CZ.DB.char.friendlyTargeting = value
         if value then
-          TR.SetFriendlyTargeting(true)
+          CZ.SetFriendlyTargeting(true)
         else
-          TR.SetFriendlyTargeting(false)
+          CZ.SetFriendlyTargeting(false)
         end
       end,
       get = function()
-        return TR.DB.char.friendlyTargeting
+        return CZ.DB.char.friendlyTargeting
       end,
       disabled = function()
-        return not TR.DB.char.reticleTargeting
+        return not CZ.DB.char.reticleTargeting
       end
     },
     crosshairPriority = {
@@ -847,18 +872,18 @@ local ReticleTargetingOptions = {
       width = 2.1,
       order = 5,
       set = function(_, value)
-        TR.DB.char.crosshairPriority = value
+        CZ.DB.char.crosshairPriority = value
         if value then
-          TR.SetCrosshairPriority(true)
+          CZ.SetCrosshairPriority(true)
         else
-          TR.SetCrosshairPriority(false)
+          CZ.SetCrosshairPriority(false)
         end
       end,
       get = function()
-        return TR.DB.char.crosshairPriority
+        return CZ.DB.char.crosshairPriority
       end,
       disabled = function()
-        return TR.DB.char.reticleTargeting ~= true or not HAS_MOUSEOVER_CAST
+        return CZ.DB.char.reticleTargeting ~= true or not HAS_MOUSEOVER_CAST
       end
     },
     friendlyTargetingInCombat = {
@@ -868,13 +893,13 @@ local ReticleTargetingOptions = {
       width = 1.5,
       order = 6,
       set = function(_, value)
-        TR.DB.char.friendlyTargetingInCombat = value
+        CZ.DB.char.friendlyTargetingInCombat = value
       end,
       get = function()
-        return TR.DB.char.friendlyTargetingInCombat
+        return CZ.DB.char.friendlyTargetingInCombat
       end,
       disabled = function()
-        return not TR.DB.char.reticleTargeting or not TR.DB.char.friendlyTargeting
+        return not CZ.DB.char.reticleTargeting or not CZ.DB.char.friendlyTargeting
       end
     },
     spacing = Spacing("full", 6.1),
@@ -885,13 +910,13 @@ local ReticleTargetingOptions = {
       width = 1.5,
       order = 6.2,
       set = function(_, value)
-        TR.DB.global.targetCircle = value
+        CZ.DB.global.targetCircle = value
         if value then
-          TR.SetTargetCircle(true)
+          CZ.SetTargetCircle(true)
         end
       end,
       get = function()
-        return TR.DB.global.targetCircle
+        return CZ.DB.global.targetCircle
       end
     },
     spacingTargetCircle = Spacing("full", 6.3),
@@ -917,8 +942,8 @@ local ReticleTargetingOptions = {
 --                                MOUSE CLICK CASTING                                --
 ---------------------------------------------------------------------------------------
 local ClickCastingOptions = {
-  name = TR.METADATA["TITLE"],
-  handler = TR,
+  name = CZ.METADATA["TITLE"],
+  handler = CZ,
   type = "group",
   childGroups = "tab",
   args = {
@@ -927,15 +952,15 @@ local ClickCastingOptions = {
     globalKeybind = {
       type = "toggle",
       name = "Use Account-Wide Click Bindings |cff3B73FF©|r",
-      desc = "|cff3B73FF© Character-based option|r\n\nUse your account-wide shared True Reticle keybinds on this character.\n\n|cffffd700Default:|r |cffE52B50Off|r",
+      desc = "|cff3B73FF© Character-based option|r\n\nUse your account-wide shared Crosshair Z keybinds on this character.\n\n|cffffd700Default:|r |cffE52B50Off|r",
       width = "full",
       order = 3,
       set = function(_, value)
-        TR.DB.char.useGlobalBindings = value
-        TR.OverrideDefaultButtons()
+        CZ.DB.char.useGlobalBindings = value
+        CZ.OverrideDefaultButtons()
       end,
       get = function()
-        return TR.DB.char.useGlobalBindings
+        return CZ.DB.char.useGlobalBindings
       end
     },
     spacing = Spacing("full", 4),
@@ -950,8 +975,8 @@ local ClickCastingOptions = {
 --                               ADVANCED CONFIG PANEL                               --
 ---------------------------------------------------------------------------------------
 local AdvancedConfigOptions = {
-  name = TR.METADATA["TITLE"],
-  handler = TR,
+  name = CZ.METADATA["TITLE"],
+  handler = CZ,
   type = "group",
   args = {
     header = Header("advanced", 1),
@@ -969,10 +994,10 @@ local AdvancedConfigOptions = {
           multiline = 14,
           width = "full",
           set = function(_, input)
-            TR.DB.global.customCondition = input
+            CZ.DB.global.customCondition = input
           end,
           get = function()
-            return TR.DB.global.customCondition
+            return CZ.DB.global.customCondition
           end
         },
         spacing5 = Spacing("full", 2),
@@ -1008,27 +1033,27 @@ local AdvancedConfigOptions = {
 --                              SETTINGS CATEGORY TREE                               --
 ---------------------------------------------------------------------------------------
 -- Header
-TR.Config.AboutOptions = AboutOptions
+CZ.Config.AboutOptions = AboutOptions
 
 -- Options
-TR.Config.OptionCategories = {
+CZ.Config.OptionCategories = {
   {
-    id = "TrueReticle_FreeLook",
+    id = "CrosshairZ_FreeLook",
     name = "|cff7CFF4F • Mouse Look|r",
     table = FreeLookOptions
   },
   {
-    id = "TrueReticle_ReticleTargeting",
+    id = "CrosshairZ_ReticleTargeting",
     name = "|cff00FFFF • Reticle Targeting|r",
     table = ReticleTargetingOptions
   },
   {
-    id = "TrueReticle_ClickCasting",
+    id = "CrosshairZ_ClickCasting",
     name = "|cffB47EDC • Click Casting|r",
     table = ClickCastingOptions
   },
   {
-    id = "TrueReticle_Advanced",
+    id = "CrosshairZ_Advanced",
     name = "|cffffffff • Advanced|r",
     table = AdvancedConfigOptions
   }

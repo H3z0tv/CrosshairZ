@@ -15,13 +15,16 @@
 	<Script file="ConfigFeatures.lua"/>
 	<Script file="Features.lua"/>
 	<Script file="Camera.lua"/>
+	<Script file="Assist.lua"/>
+	<Script file="Orbs.lua"/>
+	<Script file="Extras.lua"/>
 	<Script file="Changelog.lua"/>
 	<Script file="UI.lua"/>
     <!-- FRAME -->
-	<Frame name="TrueReticleFrame" hidden="false" parent="UIParent" inherits="SecureHandlerStateTemplate">
+	<Frame name="CrosshairZFrame" hidden="false" parent="UIParent" inherits="SecureHandlerStateTemplate">
 		<Scripts>
-			<OnUpdate function="TrueReticle_OnUpdate"/>
-			<OnEvent function="TrueReticle_OnEvent"/>
+			<OnUpdate function="CrosshairZ_OnUpdate"/>
+			<OnEvent function="CrosshairZ_OnEvent"/>
 		</Scripts>
 	</Frame>
 </Ui>

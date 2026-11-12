@@ -1,0 +1,16 @@
+## Interface: 120105, 16001
+## Version: 0.1.7
+
+## Title: Crosshair |cff7CFF4FZ|r
+## Author: H3z0
+## Notes: Action-camera combat for World of Warcraft: free look, reticle targeting and mouse-click casting.
+## IconTexture: Interface\AddOns\CrosshairZ\assets\czlogo
+
+## DefaultState: enabled
+## LoadOnDemand: 0
+## SavedVariables: CrosshairZDB
+
+## Category: Combat
+
+# Imports
+Embeds.xml

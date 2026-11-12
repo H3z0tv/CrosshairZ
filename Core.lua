@@ -31,9 +31,11 @@ local function SafeCall(fn, ...)
 end
 
 -- KEYBIND LABELS (Bindings.xml)
-_G.BINDING_HEADER_TRUERETICLE = "True Reticle"
-_G.BINDING_NAME_TRUERETICLE_TOGGLE = "Toggle Free Look"
-_G.BINDING_NAME_TRUERETICLE_HOLD = "Hold to Switch Free Look"
+_G.BINDING_HEADER_CROSSHAIRZ = "Crosshair Z"
+_G.BINDING_NAME_CROSSHAIRZ_TOGGLE = "Toggle Free Look"
+_G.BINDING_NAME_CROSSHAIRZ_HOLD = "Hold to Switch Free Look"
+_G.BINDING_NAME_CROSSHAIRZ_LOCK = "Target Lock"
+_G.BINDING_NAME_CROSSHAIRZ_FLIP = "Flip Camera Shoulder"
 
 -- CACHING GLOBAL VARIABLES
 -- Slightly better performance than doing a global lookup every time
@@ -77,13 +79,13 @@ local UnitReaction = _G.UnitReaction
 local unpack = _G.unpack
 
 -- INSTANTIATING ADDON & ENCAPSULATING NAMESPACE
-local TR = AceAddon:NewAddon("TrueReticle", "AceConsole-3.0", "AceEvent-3.0")
-_G.TrueReticle = TR
+local CZ = AceAddon:NewAddon("CrosshairZ", "AceConsole-3.0", "AceEvent-3.0")
+_G.CrosshairZ = CZ
 
 -- INITIAL STATE VARIABLES
 --[[
 Changes when Free Look state is modified through user input
-("Toggle" or "Press & Hold" keybinds and "/tr" cmd)
+("Toggle" or "Press & Hold" keybinds and "/cz" cmd)
 ]] --
 local FreeLookOverride = false
 
@@ -100,17 +102,17 @@ local function FetchDataFromTOC()
   }
 
   for _, key in ipairs(keysToFetch) do
-    dataRetuned[string.upper(key)] = GetAddOnMetadata("TrueReticle", key)
+    dataRetuned[string.upper(key)] = GetAddOnMetadata("CrosshairZ", key)
   end
 
   return dataRetuned
 end
 
-TR.METADATA = FetchDataFromTOC()
+CZ.METADATA = FetchDataFromTOC()
 
-function TR.DebugPrint(statement)
-  if TR.DB.global.debugMode then
-    print(TR.Constants.BasePrintMsg .. "|cff909090: " .. tostring(statement) .. "|r")
+function CZ.DebugPrint(statement)
+  if CZ.DB.global.debugMode then
+    print(CZ.Constants.BasePrintMsg .. "|cff909090: " .. tostring(statement) .. "|r")
   end
 end
 
@@ -119,45 +121,46 @@ local function PreventDebugSpam(msg)
   local currentTime = GetTime()
 
   if currentTime - lastPrintTime > 3 then
-    TR.DebugPrint(msg)
+    CZ.DebugPrint(msg)
     lastPrintTime = currentTime
   end
 end
 
 local function OpenConfigPanel()
   if InCombatLockdown() then
-    print(TR.Constants.BasePrintMsg .. "|cff909090: Cannot open settings while in combat.|r")
+    print(CZ.Constants.BasePrintMsg .. "|cff909090: Cannot open settings while in combat.|r")
     return
   end
-  TR.UI.Open()
+  CZ.UI.Open()
 end
 
 local function UndoChanges()
   if InCombatLockdown() then
-    print(TR.Constants.BasePrintMsg .. "|cff909090: Cannot run this cmd while in combat.|r")
+    print(CZ.Constants.BasePrintMsg .. "|cff909090: Cannot run this cmd while in combat.|r")
     return
   end
-  TR:ResetCVarsToDefault()
-  DisableAddOn("TrueReticle")
+  CZ:ResetCVarsToDefault()
+  DisableAddOn("CrosshairZ")
   ReloadUI()
 end
 
-TR.UndoChanges = function()
+CZ.UndoChanges = function()
   UndoChanges()
 end
 
 local function DisplayPopup()
-  if TR.DB.char.seenWarning then
+  -- fresh installs get the setup wizard instead (see UI.CheckFirstRun)
+  if CZ.DB.char.seenWarning or CZ.DB.global.lastSeenVersion == nil then
     return
   end
 
   local function OnClosePopup()
-    TR.DB.char.seenWarning = true
+    CZ.DB.char.seenWarning = true
     OpenConfigPanel()
   end
 
-  StaticPopupDialogs["TrueReticle Warning"] = {
-    text = TR.Constants.PopupMsg,
+  StaticPopupDialogs["CrosshairZ Warning"] = {
+    text = CZ.Constants.PopupMsg,
     button1 = "Ok",
     OnButton1 = OnClosePopup,
     OnHide = OnClosePopup,
@@ -165,16 +168,16 @@ local function DisplayPopup()
     whileDead = true
   }
 
-  StaticPopup_Show("TrueReticle Warning")
+  StaticPopup_Show("CrosshairZ Warning")
 end
 
-function TR.MacroExists(name)
+function CZ.MacroExists(name)
   return GetMacroInfo(name) ~= nil
 end
 
 local function CreateTargetMacros()
   local function createMacroIfNotExists(macroName, icon, macroText)
-    if not TR.MacroExists(macroName) then
+    if not CZ.MacroExists(macroName) then
       CreateMacro(macroName, icon, macroText, false)
     end
   end
@@ -186,10 +189,10 @@ local function CreateTargetMacros()
     return
   end
 
-  for macroName, macroText in pairs(TR.Constants.Macros) do
+  for macroName, macroText in pairs(CZ.Constants.Macros) do
     local ok, err = pcall(createMacroIfNotExists, macroName, macroIcon, macroText)
     if not ok then
-      TR.DebugPrint("Could not create macro " .. macroName .. ": " .. tostring(err))
+      CZ.DebugPrint("Could not create macro " .. macroName .. ": " .. tostring(err))
     end
   end
 end
@@ -208,7 +211,21 @@ end
 local tooltipSuppressed = false
 local tooltipHooked = false
 
-local function HideTooltip(shouldHide)
+-- "hide", "show", "shift", "ctrl" or "alt" (older versions only had the hide switch)
+function CZ.TooltipMode()
+  local mode = CZ.DB.global.tooltipMode
+  if mode then
+    return mode
+  end
+  return CZ.DB.global.hideTooltip and "hide" or "show"
+end
+
+local HideTooltip
+function CZ.SetTooltipHidden(hidden)
+  HideTooltip(hidden)
+end
+
+HideTooltip = function(shouldHide)
   tooltipSuppressed = shouldHide and true or false
 
   if not tooltipHooked then
@@ -232,9 +249,9 @@ end
 ]] --
 local function IsDCLoaded()
   local DC = AceAddon:GetAddon("DynamicCam", true)
-  TR.DynamicCam = DC ~= nil and true or false
-  if TR.DynamicCam then
-    print(TR.Constants.BasePrintMsg ..
+  CZ.DynamicCam = DC ~= nil and true or false
+  if CZ.DynamicCam then
+    print(CZ.Constants.BasePrintMsg ..
             "|cff909090: |cff7CFF4FDynamicCam detected!|r Handing over control of |cffE37527• Camera Features|r.|r")
   end
 end
@@ -246,14 +263,14 @@ local function LoadCVars(info)
   local CVarType, CMValues, BlizzValues, FeatureName = info.CVarType, info.CMValues, info.BlizzValues, info.FeatureName
   local CVarsToLoad
 
-  if CVarType == "truereticle" then
+  if CVarType == "crosshairz" then
     CVarsToLoad = CMValues
-    TR.DebugPrint(FeatureName .. " CVars LOADED")
+    CZ.DebugPrint(FeatureName .. " CVars LOADED")
   elseif CVarType == "blizzard" then
     CVarsToLoad = BlizzValues
-    TR.DebugPrint(FeatureName .. " CVars RESET")
+    CZ.DebugPrint(FeatureName .. " CVars RESET")
   else
-    TR.DebugPrint("Invalid CVarType specified in fn TR.ConfigCVars() for " .. FeatureName .. ": " .. tostring(CVarType))
+    CZ.DebugPrint("Invalid CVarType specified in fn CZ.ConfigCVars() for " .. FeatureName .. ": " .. tostring(CVarType))
     return
   end
 
@@ -262,75 +279,99 @@ local function LoadCVars(info)
   end
 end
 
-function TR.ConfigReticleTargeting(CVarType)
+function CZ.ConfigReticleTargeting(CVarType)
   local info = {
     CVarType = CVarType,
-    CMValues = TR.Constants.ReticleTargetingCVarValues,
-    BlizzValues = TR.Constants.BlizzardReticleTargetingCVarValues,
+    CMValues = CZ.Constants.ReticleTargetingCVarValues,
+    BlizzValues = CZ.Constants.BlizzardReticleTargetingCVarValues,
     FeatureName = "Reticle Targeting"
   }
 
   LoadCVars(info)
 end
 
-function TR.ConfigActionCamera(CVarType)
-  if TR.DynamicCam then
+-- Motion Sickness Protection: Crosshair Z never moves the camera off-center or makes it bob
+function CZ.MotionSafe()
+  return CZ.DB and CZ.DB.global.motionSickness and true or false
+end
+
+-- Flip Camera keybind: mirrors the shoulder offset to the other side
+CZ.shoulderSign = 1
+function CZ.FlipShoulder()
+  CZ.shoulderSign = -(CZ.shoulderSign or 1)
+  if not CZ.MotionSafe() and CZ.DB.global.actionCamera then
+    CZ.SetShoulderOffset()
+  end
+  if CZ.Camera and CZ.Camera.Reapply then
+    CZ.Camera.Reapply()
+  end
+end
+
+function CZ.ConfigActionCamera(CVarType)
+  if CZ.DynamicCam then
+    return
+  end
+  if CVarType == "crosshairz" and CZ.MotionSafe() then
+    CZ.DebugPrint("Motion Sickness Protection is on: Action Camera preset skipped.")
     return
   end
 
   local info = {
     CVarType = CVarType,
-    CMValues = TR.Constants.ActionCameraCVarValues,
-    BlizzValues = TR.Constants.BlizzardActionCameraCVarValues,
+    CMValues = CZ.Constants.ActionCameraCVarValues,
+    BlizzValues = CZ.Constants.BlizzardActionCameraCVarValues,
     FeatureName = "Action Camera"
   }
 
   LoadCVars(info)
-  if CVarType == "truereticle" then
-    TR.SetShoulderOffset()
+  if CVarType == "crosshairz" then
+    CZ.SetShoulderOffset()
   end
   -- Disable the Action Cam warning message.
   UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
 end
 
-function TR.ConfigStickyCrosshair(CVarType)
-  if TR.DynamicCam then
+function CZ.ConfigStickyCrosshair(CVarType)
+  if CZ.DynamicCam then
     return
   end
 
   local info = {
     CVarType = CVarType,
-    CMValues = TR.Constants.TagetFocusCVarValues,
-    BlizzValues = TR.Constants.BlizzardTagetFocusCVarValues,
+    CMValues = CZ.Constants.TagetFocusCVarValues,
+    BlizzValues = CZ.Constants.BlizzardTagetFocusCVarValues,
     FeatureName = "Sticky Crosshair"
   }
 
   LoadCVars(info)
 end
 
-function TR.SetMouseLookSpeed()
-  if TR.DynamicCam then
+function CZ.SetMouseLookSpeed()
+  if CZ.DynamicCam then
     return
   end
 
-  local XSpeed = TR.DB.global.mouseLookSpeed
-  local YSpeed = TR.DB.global.mouseLookSpeed / 2 -- Blizz wants pitch speed as 1/2 of yaw speed
+  local XSpeed = CZ.DB.global.mouseLookSpeed
+  local YSpeed = CZ.DB.global.mouseLookSpeed / 2 -- Blizz wants pitch speed as 1/2 of yaw speed
   SetCVar("cameraYawMoveSpeed", XSpeed)
   SetCVar("cameraPitchMoveSpeed", YSpeed)
-  TR.DebugPrint("Setting Camera Turn Speed X to " .. XSpeed .. " and Y to " .. YSpeed)
+  CZ.DebugPrint("Setting Camera Turn Speed X to " .. XSpeed .. " and Y to " .. YSpeed)
 end
 
-function TR.SetShoulderOffset()
-  if TR.DynamicCam then
+function CZ.SetShoulderOffset()
+  if CZ.DynamicCam then
     return
   end
 
-  local offset = TR.DB.char.shoulderOffset
+  if CZ.MotionSafe() then
+    return
+  end
+  local offset = (CZ.DB.char.shoulderOffset or 0) * (CZ.shoulderSign or 1)
   SetCVar("test_cameraOverShoulder", offset)
-  TR.DebugPrint("Setting Shoulder Offset to " .. offset)
+  CZ.DebugPrint("Setting Shoulder Offset to " .. offset)
 end
 
-function TR.SetCrosshairPriority(enabled)
+function CZ.SetCrosshairPriority(enabled)
   if not HAS_MOUSEOVER_CAST then
     return
   end
@@ -338,36 +379,36 @@ function TR.SetCrosshairPriority(enabled)
     SetCVar("enableMouseoverCast", 1)
     SetModifiedClick("MOUSEOVERCAST", "NONE")
     SaveBindings(GetCurrentBindingSet())
-    TR.DebugPrint("Enabling Crosshair Priority")
+    CZ.DebugPrint("Enabling Crosshair Priority")
   else
     SetCVar("enableMouseoverCast", 0)
-    TR.DebugPrint("Disabling Crosshair Priority")
+    CZ.DebugPrint("Disabling Crosshair Priority")
   end
 end
 
-function TR.SetFriendlyTargeting(enabled)
+function CZ.SetFriendlyTargeting(enabled)
   if enabled then
     SetCVar("SoftTargetFriend", 3)
-    TR.DebugPrint("Enabling Friendly Targeting out of combat")
+    CZ.DebugPrint("Enabling Friendly Targeting out of combat")
   else
     SetCVar("SoftTargetFriend", 0)
-    TR.DebugPrint("Disabling Friendly Targeting in combat")
+    CZ.DebugPrint("Disabling Friendly Targeting in combat")
   end
 end
 
 -- Target circle (the ring on the ground under your target)
-function TR.SetTargetCircle(enabled)
+function CZ.SetTargetCircle(enabled)
   if _G.C_CVar.GetCVar("ObjectSelectionCircle") == nil then
-    TR.DebugPrint("ObjectSelectionCircle CVar not found on this client.")
+    CZ.DebugPrint("ObjectSelectionCircle CVar not found on this client.")
     return
   end
   SetCVar("ObjectSelectionCircle", enabled and 1 or 0)
-  TR.DebugPrint((enabled and "Enabling" or "Disabling") .. " Target Circle")
+  CZ.DebugPrint((enabled and "Enabling" or "Disabling") .. " Target Circle")
 end
 
 -- Temporarily disable friendly targeting during combat
 local function HandleFriendlyTargetingInCombat()
-  local CharConfig = TR.DB.char or {}
+  local CharConfig = CZ.DB.char or {}
   local isFriendlyTargetingInCombatOn = CharConfig.reticleTargeting and CharConfig.friendlyTargeting and
                                           CharConfig.friendlyTargetingInCombat
 
@@ -378,25 +419,25 @@ local function HandleFriendlyTargetingInCombat()
   local InCombat = UnitAffectingCombat("player")
 
   if InCombat then
-    TR.SetFriendlyTargeting(false)
+    CZ.SetFriendlyTargeting(false)
   else
-    TR.SetFriendlyTargeting(true)
+    CZ.SetFriendlyTargeting(true)
   end
 end
 
 local function CenterCursor(shouldCenter)
   if shouldCenter then
     SetCVar("CursorFreelookCentering", 1)
-    TR.DebugPrint("Locking cursor to crosshair position.")
+    CZ.DebugPrint("Locking cursor to crosshair position.")
   else
     SetCVar("CursorFreelookCentering", 0)
-    TR.DebugPrint("Freeing cursor from crosshair position.")
+    CZ.DebugPrint("Freeing cursor from crosshair position.")
   end
 end
 
-function TR:ResetCVarsToDefault()
-  if TR.Camera then
-    TR.Camera.Deactivate()
+function CZ:ResetCVarsToDefault()
+  if CZ.Camera then
+    CZ.Camera.Deactivate()
   end
   self.ConfigReticleTargeting("blizzard")
   self.ConfigActionCamera("blizzard")
@@ -404,13 +445,13 @@ function TR:ResetCVarsToDefault()
   self.SetCrosshairPriority(false)
   self.SetFriendlyTargeting(false)
 
-  print(TR.Constants.BasePrintMsg .. "|cff909090: all changes have been reverted.|r")
+  print(CZ.Constants.BasePrintMsg .. "|cff909090: all changes have been reverted.|r")
 end
 ---------------------------------------------------------------------------------------
 --                           CROSSHAIR HANDLING FUNCTIONS                            --
 ---------------------------------------------------------------------------------------
 -- SETTING UP CROSSHAIR FRAME & ANIMATION
-local CrosshairFrame = CreateFrame("Frame", "TrueReticleCrosshairFrame", UIParent)
+local CrosshairFrame = CreateFrame("Frame", "CrosshairZCrosshairFrame", UIParent)
 local CrosshairTexture = CrosshairFrame:CreateTexture(nil, "OVERLAY")
 local CrosshairAnimation = CrosshairFrame:CreateAnimationGroup()
 local ScaleAnimation = CrosshairAnimation:CreateAnimation("Scale")
@@ -424,28 +465,31 @@ ScaleAnimation:SetSmoothProgress(scaleDuration)
 ScaleAnimation:SetSmoothing("IN_OUT")
 
 local function HideCrosshairWhileMounted()
-  return TR.DB.global.crosshairMounted and IsMounted()
+  return CZ.DB.global.crosshairMounted and IsMounted()
 end
 
 -- Shared crosshair state used by the HUD / Smart Crosshair modules
-TR.CrosshairFrame = CrosshairFrame
-TR.CrosshairTexture = CrosshairTexture
-TR.crosshairExtraY = 0 -- extra height from head tracking
-TR.crosshairAlphaMult = 1 -- visibility multiplier from Smart Crosshair
-TR.crosshairTint = nil -- {r, g, b, a} range tint for hostile targets
+CZ.CrosshairFrame = CrosshairFrame
+CZ.CrosshairTexture = CrosshairTexture
+CZ.crosshairExtraY = 0 -- extra height from head tracking
+CZ.crosshairAlphaMult = 1 -- visibility multiplier from Smart Crosshair
+CZ.crosshairTint = nil -- {r, g, b, a} range tint for hostile targets
 local lastCrosshairState = "base"
 
-function TR.GetCrosshairY()
-  return (TR.DB.global.crosshairY or 0) + (TR.crosshairExtraY or 0)
+function CZ.GetCrosshairY()
+  return (CZ.DB.global.crosshairY or 0) + (CZ.crosshairExtraY or 0)
 end
 
 local function SetCrosshairAppearance(state)
-  local CrosshairAppearance = TR.DB.global.crosshairAppearance
-  local crosshairYPos = TR.GetCrosshairY()
+  local CrosshairAppearance = CZ.DB.global.crosshairAppearance
+  local crosshairYPos = CZ.GetCrosshairY()
   lastCrosshairState = state
-  local r, g, b, a = unpack(TR.Constants.CrosshairReactionColors[state])
-  if state == "hostile" and TR.crosshairTint then
-    r, g, b, a = TR.crosshairTint[1], TR.crosshairTint[2], TR.crosshairTint[3], TR.crosshairTint[4] or 1
+  local r, g, b, a = unpack(CZ.Constants.CrosshairReactionColors[state])
+  if state == "mounted" and CZ.DB.global.crosshairMountedStyle == "dim" then
+    r, g, b, a = 1, 1, 1, 0.35
+  end
+  if state == "hostile" and CZ.crosshairTint then
+    r, g, b, a = CZ.crosshairTint[1], CZ.crosshairTint[2], CZ.crosshairTint[3], CZ.crosshairTint[4] or 1
   end
   local textureToUse = state == "base" and CrosshairAppearance.Base or CrosshairAppearance.Active
   local reverseAnimation = state == "base" and true or false
@@ -467,8 +511,21 @@ local function SetCrosshairAppearance(state)
   end
 end
 
-function TR.DisplayCrosshair(shouldShow)
+function CZ.IsLiveEditing()
+  return CZ.UI and CZ.UI.IsOpen and CZ.UI.IsOpen() or false
+end
+
+function CZ.DisplayCrosshair(shouldShow)
+  CZ.crosshairWanted = shouldShow and true or false
+  if CZ.IsLiveEditing() and CZ.DB.global.crosshair then
+    shouldShow = true -- live preview while the settings window is open
+  end
   if shouldShow then
+    CrosshairTexture:SetAlpha(1)
+    CrosshairTexture:Show()
+  elseif CZ.DB.global.crosshair and CZ.DB.global.crosshairDisabledStyle == "dim" then
+    -- Free Look off: keep a faint crosshair on screen
+    CrosshairTexture:SetAlpha(0.3)
     CrosshairTexture:Show()
   else
     CrosshairTexture:Hide()
@@ -483,9 +540,9 @@ local function AdjustCenteredCursorYPos(crosshairYPos)
   SetCVar("CursorCenteredYPos", cursorCenteredYpos)
 end
 
-function TR.CreateCrosshair()
-  local DefaultConfig = TR.Constants.DatabaseDefaults.global
-  local UserConfig = TR.DB.global or {}
+function CZ.CreateCrosshair()
+  local DefaultConfig = CZ.Constants.DatabaseDefaults.global
+  local UserConfig = CZ.DB.global or {}
   local crosshairYPos = UserConfig.crosshairY or DefaultConfig.crosshairY
 
   CrosshairTexture:SetAllPoints(CrosshairFrame)
@@ -493,40 +550,40 @@ function TR.CreateCrosshair()
   CrosshairFrame:SetPoint("CENTER", 0, crosshairYPos)
   CrosshairFrame:SetSize(UserConfig.crosshairSize or DefaultConfig.crosshairSize,
     UserConfig.crosshairSize or DefaultConfig.crosshairSize)
-  CrosshairFrame:SetAlpha((UserConfig.crosshairOpacity or DefaultConfig.crosshairOpacity) * (TR.crosshairAlphaMult or 1))
+  CrosshairFrame:SetAlpha((UserConfig.crosshairOpacity or DefaultConfig.crosshairOpacity) * (CZ.crosshairAlphaMult or 1))
 
   SetCrosshairAppearance("base")
-  AdjustCenteredCursorYPos(TR.GetCrosshairY())
+  AdjustCenteredCursorYPos(CZ.GetCrosshairY())
 end
 
 -- Range tint for hostile targets (nil clears it)
-function TR.SetCrosshairTint(r, g, b, a)
+function CZ.SetCrosshairTint(r, g, b, a)
   if r then
-    TR.crosshairTint = {r, g, b, a or 1}
+    CZ.crosshairTint = {r, g, b, a or 1}
   else
-    TR.crosshairTint = nil
+    CZ.crosshairTint = nil
   end
   if lastCrosshairState == "hostile" then
-    local color = TR.crosshairTint or TR.Constants.CrosshairReactionColors.hostile
+    local color = CZ.crosshairTint or CZ.Constants.CrosshairReactionColors.hostile
     CrosshairTexture:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
   end
 end
 
 -- Visibility multiplier (0..1) on top of the crosshair opacity setting
-function TR.SetCrosshairAlphaMultiplier(mult)
-  TR.crosshairAlphaMult = mult
-  CrosshairFrame:SetAlpha((TR.DB.global.crosshairOpacity or 1) * mult)
+function CZ.SetCrosshairAlphaMultiplier(mult)
+  CZ.crosshairAlphaMult = mult
+  CrosshairFrame:SetAlpha((CZ.DB.global.crosshairOpacity or 1) * mult)
 end
 
 -- Extra height (head tracking). Moves the crosshair and the centered cursor with it.
 local lastCursorY
-function TR.SetCrosshairExtraY(dy)
+function CZ.SetCrosshairExtraY(dy)
   dy = dy or 0
-  if math.abs(dy - (TR.crosshairExtraY or 0)) < 0.5 then
+  if math.abs(dy - (CZ.crosshairExtraY or 0)) < 0.5 then
     return
   end
-  TR.crosshairExtraY = dy
-  local y = TR.GetCrosshairY()
+  CZ.crosshairExtraY = dy
+  local y = CZ.GetCrosshairY()
   local scale = CrosshairFrame:GetScale() or 1
   CrosshairFrame:SetPoint("CENTER", 0, y / (scale > 0 and scale or 1))
   if not lastCursorY or math.abs(y - lastCursorY) >= 2 then
@@ -582,7 +639,7 @@ local PulseTexture = PulseFrame:CreateTexture(nil, "BACKGROUND")
 local function CreatePulse()
   PulseFrame:SetSize(0, 0)
   PulseFrame:Hide()
-  PulseTexture:SetAtlas(TR.Constants.PulseAtlas, true)
+  PulseTexture:SetAtlas(CZ.Constants.PulseAtlas, true)
   PulseTexture:SetVertexColor(1, 1, 1, 1)
   PulseTexture:SetAllPoints()
 end
@@ -624,7 +681,7 @@ PulseFrame:SetScript("OnUpdate", UpdatePulse)
 --                      FRAME WATCHING / CURSOR UNLOCK FUNCTIONS                     --
 ---------------------------------------------------------------------------------------
 local function CursorUnlockFrameVisible(frameArr)
-  local allowFrameWatching = TR.DB.global.frameWatching
+  local allowFrameWatching = CZ.DB.global.frameWatching
   if not allowFrameWatching then
     return false
   end
@@ -644,8 +701,8 @@ local function CursorUnlockFrameGroupVisible(frameNameGroups)
       if wildcardFrameName == "OPieRT" then
         -- Hiding crosshair because OPie runs MouselookStop() itself,
         -- which skips UnlockCursor()'s checks to hide crosshair
-        if TR.DB.global.crosshair then
-          TR.DisplayCrosshair(false)
+        if CZ.DB.global.crosshair then
+          CZ.DisplayCrosshair(false)
         end
         CenterCursor(false)
       end
@@ -655,21 +712,21 @@ local function CursorUnlockFrameGroupVisible(frameNameGroups)
 end
 
 local function IsCustomConditionTrue()
-  if not TR.DB.global.customCondition then
+  if not CZ.DB.global.customCondition then
     return false
   end
 
-  local func, err = loadstring(TR.DB.global.customCondition)
+  local func, err = loadstring(CZ.DB.global.customCondition)
 
   if not func then
-    TR.DebugPrint("Invalid custom condition " .. err)
+    CZ.DebugPrint("Invalid custom condition " .. err)
     return false
   else
     -- Calling the fn() protected to check evaluation
     local success, result = pcall(func)
 
     if not success then
-      TR.DebugPrint("Error executing custom condition: " .. result)
+      CZ.DebugPrint("Error executing custom condition: " .. result)
       return false
     end
 
@@ -678,7 +735,7 @@ local function IsCustomConditionTrue()
 end
 
 local function IsVendorMountOut()
-  if not TR.DB.global.mountCheck then
+  if not CZ.DB.global.mountCheck then
     return false
   end
 
@@ -689,7 +746,7 @@ local function IsVendorMountOut()
 
   -- Spell IDs first: works on every client language
   if GetPlayerAuraBySpellID then
-    for _, spellID in ipairs(TR.Constants.MountSpellIDsToCheck) do
+    for _, spellID in ipairs(CZ.Constants.MountSpellIDsToCheck) do
       if SafeCall(GetPlayerAuraBySpellID, spellID) ~= nil then
         return true
       end
@@ -697,7 +754,7 @@ local function IsVendorMountOut()
   end
 
   -- English names as a fallback
-  for _, mount in ipairs(TR.Constants.MountsToCheck) do
+  for _, mount in ipairs(CZ.Constants.MountsToCheck) do
     if SafeCall(GetAuraDataBySpellName, "player", mount, "HELPFUL") ~= nil then
       return true
     end
@@ -715,8 +772,8 @@ end
 
 local function IsUnlockFrameVisible()
   local isGenericPanelOpen = (GetUIPanel("left") or GetUIPanel("right") or GetUIPanel("center")) and true or false
-  return CursorUnlockFrameVisible(TR.Constants.FramesToCheck) or CursorUnlockFrameVisible(TR.DB.global.watchlist) or
-           CursorUnlockFrameGroupVisible(TR.Constants.WildcardFramesToCheck) or isGenericPanelOpen
+  return CursorUnlockFrameVisible(CZ.Constants.FramesToCheck) or CursorUnlockFrameVisible(CZ.DB.global.watchlist) or
+           CursorUnlockFrameGroupVisible(CZ.Constants.WildcardFramesToCheck) or isGenericPanelOpen
 end
 
 local function ShouldFreeLookBeOff()
@@ -728,32 +785,32 @@ end
 
 -- FRAME WATCHING FOR SERIALIZED FRAMES (Ex: Opie rings)
 local function InitializeWildcardFrameTracking(frameArr)
-  TR.DebugPrint("Looking for wildcard frames...")
+  CZ.DebugPrint("Looking for wildcard frames...")
 
   -- Initialise the table by going through ALL available globals once and keeping the ones that match
   for _, frameNameToFind in pairs(frameArr) do
-    TR.Constants.WildcardFramesToCheck[frameNameToFind] = {}
+    CZ.Constants.WildcardFramesToCheck[frameNameToFind] = {}
 
     for frameName in pairs(_G) do
       if string.match(frameName, frameNameToFind) then
-        TR.DebugPrint("Matched " .. frameNameToFind .. " to frame " .. frameName)
-        local frameGroup = TR.Constants.WildcardFramesToCheck[frameNameToFind]
+        CZ.DebugPrint("Matched " .. frameNameToFind .. " to frame " .. frameName)
+        local frameGroup = CZ.Constants.WildcardFramesToCheck[frameNameToFind]
         frameGroup[#frameGroup + 1] = frameName
       end
     end
   end
 
-  TR.DebugPrint("Wildcard frames initialized")
+  CZ.DebugPrint("Wildcard frames initialized")
 end
 
 ---------------------------------------------------------------------------------------
 --                             BUTTON OVERRIDE FUNCTIONS                             --
 ---------------------------------------------------------------------------------------
-function TR.GetBindingsLocation()
-  return TR.DB.char.useGlobalBindings and "global" or "char"
+function CZ.GetBindingsLocation()
+  return CZ.DB.char.useGlobalBindings and "global" or "char"
 end
 
-function TR.SetNewBinding(buttonSettings)
+function CZ.SetNewBinding(buttonSettings)
   if not buttonSettings.enabled then
     return
   end
@@ -762,61 +819,89 @@ function TR.SetNewBinding(buttonSettings)
   if buttonSettings.value == "MACRO" then
     valueToUse = "MACRO " .. buttonSettings.macroName
   elseif buttonSettings.value == "CLEARTARGET" then
-    valueToUse = "MACRO TR_ClearTarget"
+    valueToUse = "MACRO CZ_ClearTarget"
   elseif buttonSettings.value == "CLEARFOCUS" then
-    valueToUse = "MACRO TR_ClearFocus"
+    valueToUse = "MACRO CZ_ClearFocus"
   else
     valueToUse = buttonSettings.value
   end
   SetMouselookOverrideBinding(buttonSettings.key, valueToUse)
-  TR.DebugPrint(buttonSettings.key .. "'s override binding is now " .. valueToUse)
+  CZ.DebugPrint(buttonSettings.key .. "'s override binding is now " .. valueToUse)
 end
 
-function TR.OverrideDefaultButtons()
-  for _, button in pairs(TR.Constants.ButtonsToOverride) do
-    TR.SetNewBinding(TR.DB[TR.GetBindingsLocation()].bindings[button])
+function CZ.OverrideDefaultButtons()
+  for _, button in pairs(CZ.Constants.ButtonsToOverride) do
+    CZ.SetNewBinding(CZ.DB[CZ.GetBindingsLocation()].bindings[button])
   end
 end
 
-function TR.ResetBindingOverride(buttonSettings)
+function CZ.ResetBindingOverride(buttonSettings)
   SetMouselookOverrideBinding(buttonSettings.key, nil)
-  TR.DebugPrint(buttonSettings.key .. "'s override binding is now cleared")
+  CZ.DebugPrint(buttonSettings.key .. "'s override binding is now cleared")
 end
 
 -- Unbinding MOVEANDSTEER to avoid potential bug when toggling free look with the same key
+-- Fresh install: middle mouse toggles Free Look, unless the player already bound a key
+local function ApplyDefaultToggleKey()
+  if CZ.DB.char.defaultToggleApplied or InCombatLockdown() then
+    return
+  end
+  CZ.DB.char.defaultToggleApplied = true
+  if GetBindingKey("CROSSHAIRZ_TOGGLE") then
+    return
+  end
+  SetBinding("BUTTON3", "CROSSHAIRZ_TOGGLE")
+  SaveBindings(GetCurrentBindingSet())
+  print(CZ.Constants.BasePrintMsg .. "|cff909090: middle mouse button now toggles Free Look. Change it with /cz.|r")
+end
+
 local function UnbindMoveAndSteer()
   local key = GetBindingKey("MOVEANDSTEER")
   if key then
-    SetBinding(key, "TRUERETICLE_TOGGLE")
+    SetBinding(key, "CROSSHAIRZ_TOGGLE")
   end
   SaveBindings(GetCurrentBindingSet())
 end
 
 -- Matches the bindable actions values defined in Constants.ActionsToProcess with more readable names for the UI
 local function RenameBindableActions()
-  for _, bindingAction in pairs(TR.Constants.ActionsToProcess) do
+  for _, bindingAction in pairs(CZ.Constants.ActionsToProcess) do
     local bindingUiName = _G["BINDING_NAME_" .. bindingAction]
-    TR.Constants.OverrideActions[bindingAction] = bindingUiName or bindingAction
+    CZ.Constants.OverrideActions[bindingAction] = bindingUiName or bindingAction
   end
 end
 
 ---------------------------------------------------------------------------------------
 --                             FREE LOOK STATE FUNCTIONS                             --
 ---------------------------------------------------------------------------------------
+-- Other modules can react to Free Look turning on / off
+CZ.freeLookListeners = {}
+function CZ.OnFreeLook(fn)
+  CZ.freeLookListeners[#CZ.freeLookListeners + 1] = fn
+end
+local function FireFreeLook(on)
+  for _, fn in ipairs(CZ.freeLookListeners) do
+    local ok, err = pcall(fn, on)
+    if not ok then
+      CZ.DebugPrint("Free Look listener error: " .. tostring(err))
+    end
+  end
+end
+
 local function LockFreeLook()
   if not IsMouselooking() then
     MouselookStart()
     CenterCursor(true)
 
-    if TR.DB.global.crosshair then
-      TR.DisplayCrosshair(true)
+    if CZ.DB.global.crosshair then
+      CZ.DisplayCrosshair(true)
     end
 
-    if TR.DB.global.hideTooltip then
-      HideTooltip(true)
-    end
+    -- tooltips are managed per mode while Free Look is on (see Extras.lua)
+    HideTooltip(CZ.TooltipMode() ~= "show")
 
-    TR.DebugPrint("Free Look Enabled")
+    CZ.DebugPrint("Free Look Enabled")
+    FireFreeLook(true)
   end
 end
 
@@ -825,25 +910,24 @@ local function UnlockFreeLook()
     CenterCursor(false)
     MouselookStop()
 
-    if TR.DB.global.pulseCursor then
+    if CZ.DB.global.pulseCursor then
       ShowCursorPulse()
     end
 
-    if TR.DB.global.crosshair then
-      TR.DisplayCrosshair(false)
+    if CZ.DB.global.crosshair then
+      CZ.DisplayCrosshair(false)
     end
 
-    if TR.DB.global.hideTooltip then
-      HideTooltip(false)
-    end
+    HideTooltip(false)
 
-    TR.DebugPrint("Free Look Disabled")
+    CZ.DebugPrint("Free Look Disabled")
+    FireFreeLook(false)
   end
 end
 
 local function ToggleFreeLook(state)
   if IsDefaultMouseActionBeingUsed() then
-    TR.DebugPrint("Cannot toggle Free Look while holding down your left or right click.")
+    CZ.DebugPrint("Cannot toggle Free Look while holding down your left or right click.")
     return
   end
 
@@ -863,36 +947,36 @@ end
 -- Rematch is called after every reload and this is where we make sure our config persists
 local function Rematch()
   IsDCLoaded()
-  TR.SetMouseLookSpeed()
+  CZ.SetMouseLookSpeed()
 
-  if TR.DB.global.targetCircle then
-    TR.SetTargetCircle(true)
+  if CZ.DB.global.targetCircle then
+    CZ.SetTargetCircle(true)
   end
 
-  if TR.DB.global.actionCamera then
-    TR.ConfigActionCamera("truereticle")
+  if CZ.DB.global.actionCamera then
+    CZ.ConfigActionCamera("crosshairz")
   end
 
-  if TR.DB.char.reticleTargeting then
-    TR.ConfigReticleTargeting("truereticle")
+  if CZ.DB.char.reticleTargeting then
+    CZ.ConfigReticleTargeting("crosshairz")
 
-    if TR.DB.char.crosshairPriority then
-      TR.SetCrosshairPriority(true)
+    if CZ.DB.char.crosshairPriority then
+      CZ.SetCrosshairPriority(true)
     end
 
-    if TR.DB.char.friendlyTargeting then
-      TR.SetFriendlyTargeting(true)
+    if CZ.DB.char.friendlyTargeting then
+      CZ.SetFriendlyTargeting(true)
     end
   end
 
-  if TR.DB.global.crosshair then
+  if CZ.DB.global.crosshair then
     SetCrosshairAppearance(HideCrosshairWhileMounted() and "mounted" or "base")
 
-    if TR.DB.char.stickyCrosshair then
-      TR.ConfigStickyCrosshair("truereticle")
+    if CZ.DB.char.stickyCrosshair then
+      CZ.ConfigStickyCrosshair("crosshairz")
     end
-  elseif TR.DB.global.crosshair == false then
-    TR.DisplayCrosshair(false)
+  elseif CZ.DB.global.crosshair == false then
+    CZ.DisplayCrosshair(false)
   end
 
   LockFreeLook()
@@ -900,7 +984,7 @@ end
 
 --[[
 Handle events based on their category.
-You need to first register the event in the TR.Constants.BLIZZARD_EVENTS table before using it here.
+You need to first register the event in the CZ.Constants.BLIZZARD_EVENTS table before using it here.
 Checks which category in the table the event that's been fired belongs to, and then calls the appropriate function.
 ]] --
 local function HandleEventByCategory(category, event)
@@ -933,8 +1017,8 @@ local function HandleEventByCategory(category, event)
 end
 
 -- FIRES WHEN ONE OF OUR REGISTERED EVENTS HAPPEN IN GAME
-function _G.TrueReticle_OnEvent(event)
-  for category, registered_events in pairs(TR.Constants.BLIZZARD_EVENTS) do
+function _G.CrosshairZ_OnEvent(event)
+  for category, registered_events in pairs(CZ.Constants.BLIZZARD_EVENTS) do
     for _, registered_event in ipairs(registered_events) do
       if event == registered_event then
         HandleEventByCategory(category, event)
@@ -952,7 +1036,7 @@ This is (in most cases) extremely excessive, hence why we're adding a throttle.
 ]] --
 local ONUPDATE_INTERVAL = 0.15
 local TimeSinceLastUpdate = 0
-function _G.TrueReticle_OnUpdate(_, elapsed)
+function _G.CrosshairZ_OnUpdate(_, elapsed)
   -- Making this thread-safe by keeping track of the last update cycle
   TimeSinceLastUpdate = TimeSinceLastUpdate + elapsed
 
@@ -979,33 +1063,37 @@ end
 --                            KEYBIND FUNCTIONS & COMMANDS                           --
 ---------------------------------------------------------------------------------------
 -- FUNCTIONS CALLED FROM BINDINGS.XML
-function _G.TrueReticle_ToggleKey()
+function _G.CrosshairZ_ToggleKey()
   local state = IsMouselooking()
   ToggleFreeLook(state)
 end
 
-function _G.TrueReticle_HoldKey(keystate)
+function _G.CrosshairZ_HoldKey(keystate)
   local state = keystate == "down"
   ToggleFreeLook(state)
 end
 
--- CREATING /TR CHAT COMMAND
--- /tr toggles the window; "/tr notes", "/tr crosshair", ... open a page directly
-function TR:OpenConfigCMD(input)
+-- CREATING /CZ CHAT COMMAND
+-- /cz toggles the window; "/cz notes", "/cz crosshair", ... open a page directly
+function CZ:OpenConfigCMD(input)
   input = input and input:trim():lower() or ""
   if InCombatLockdown() then
-    print(TR.Constants.BasePrintMsg .. "|cff909090: Cannot open settings while in combat.|r")
+    print(CZ.Constants.BasePrintMsg .. "|cff909090: Cannot open settings while in combat.|r")
     return
   end
   if input == "" then
-    TR.UI.Toggle()
+    CZ.UI.Toggle()
+  elseif input == "wizard" or input == "setup" then
+    CZ.UI.OpenWizard()
+  elseif input == "move" then
+    CZ.Assist.SetUnlocked(true)
   else
-    TR.UI.Open(input)
+    CZ.UI.Open(input)
   end
 end
 
 -- /CMRESET CHAT COMMAND
-function TR:RunUndoCmd()
+function CZ:RunUndoCmd()
   UndoChanges()
 end
 
@@ -1016,22 +1104,22 @@ end
 Do init tasks here, like loading the Saved Variables,
 or setting up slash commands.
 ]] --
-function TR:OnInitialize()
-  self.DB = AceDB:New("TrueReticleDB", TR.Constants.DatabaseDefaults, true)
+function CZ:OnInitialize()
+  self.DB = AceDB:New("CrosshairZDB", CZ.Constants.DatabaseDefaults, true)
 
   -- Profiles for the HUD / Smart Crosshair / Camera settings
-  TR.Profiles.Init()
+  CZ.Profiles.Init()
 
-  -- Game Options > AddOns entry that launches the True Reticle window
-  TR.UI.RegisterBlizzardPanel()
+  -- Game Options > AddOns entry that launches the Crosshair Z window
+  CZ.UI.RegisterBlizzardPanel()
 
-  self:RegisterChatCommand("tr", "OpenConfigCMD")
-  self:RegisterChatCommand("truereticle", "OpenConfigCMD")
-  self:RegisterChatCommand("trundo", "RunUndoCmd")
+  self:RegisterChatCommand("cz", "OpenConfigCMD")
+  self:RegisterChatCommand("crosshairz", "OpenConfigCMD")
+  self:RegisterChatCommand("czundo", "RunUndoCmd")
 end
 
-function TR:OnResetDB()
-  TR.DebugPrint("Reseting True Reticle settings.")
+function CZ:OnResetDB()
+  CZ.DebugPrint("Reseting Crosshair Z settings.")
   self.DB:ResetDB("Default")
   ReloadUI();
 end
@@ -1041,30 +1129,35 @@ Do more initialization here, that really enables the use of your addon.
 Register Events, Hook functions, Create Frames, Get information from
 the game that wasn't available in OnInitialize
 ]] --
-function TR:OnEnable()
+function CZ:OnEnable()
   RenameBindableActions()
-  TR.OverrideDefaultButtons()
+  CZ.OverrideDefaultButtons()
   UnbindMoveAndSteer()
-  InitializeWildcardFrameTracking(TR.Constants.WildcardFramesToMatch)
-  TR.CreateCrosshair()
+  ApplyDefaultToggleKey()
+  InitializeWildcardFrameTracking(CZ.Constants.WildcardFramesToMatch)
+  CZ.CreateCrosshair()
   CreatePulse()
   CreateTargetMacros()
 
   -- Registering Blizzard Events from Constants.lua
-  for _, events_to_register in pairs(TR.Constants.BLIZZARD_EVENTS) do
+  for _, events_to_register in pairs(CZ.Constants.BLIZZARD_EVENTS) do
     for _, event in ipairs(events_to_register) do
-      self:RegisterEvent(event, _G.TrueReticle_OnEvent)
+      self:RegisterEvent(event, _G.CrosshairZ_OnEvent)
     end
   end
 
   -- Greeting message that is printed to chat on initial load
-  print(TR.Constants.BasePrintMsg .. "|cff909090: Type |cff69ccf0/tr|r or |cff69ccf0/truereticle|r for settings.|r")
+  print(CZ.Constants.BasePrintMsg .. "|cff909090: Type |cff69ccf0/cz|r or |cff69ccf0/crosshairz|r for settings.|r")
 
   DisplayPopup()
 
   -- Reticle HUD, Smart Crosshair and Situational Camera
-  TR.Features.Enable()
-  TR.Camera.Enable()
+  CZ.Features.Enable()
+  CZ.Camera.Enable()
+  CZ.Assist.Enable()
+  CZ.Orbs.Enable()
+  CZ.Extras.Enable()
+  CZ.UI.CheckFirstRun()
 end
 
 --[[
@@ -1072,10 +1165,13 @@ Unhook, Unregister Events, Hide frames that you created.
 You would probably only use an OnDisable if you want to
 build a "standby" mode, or be able to toggle modules on/off.
 ]] --
-function TR:OnDisable()
+function CZ:OnDisable()
   CrosshairFrame:Hide()
-  TR.Features.Disable()
-  TR.Camera.Disable()
+  CZ.Features.Disable()
+  CZ.Camera.Disable()
+  CZ.Assist.Disable()
+  CZ.Orbs.Disable()
+  CZ.Extras.Disable()
   self:ResetCVarsToDefault()
   self:UnregisterAllEvents()
 end

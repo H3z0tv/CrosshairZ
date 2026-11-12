@@ -1,6 +1,6 @@
 Third-party notice
 
-True Reticle as a whole is All Rights Reserved (see LICENSE.txt).
+Crosshair Z as a whole is All Rights Reserved (see LICENSE.txt).
 Parts of its code are based on software released under the following license, and that notice is kept here as it requires:
 
 MIT License

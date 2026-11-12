@@ -5,7 +5,7 @@
 -- that situation's zoom, shoulder offset, head tracking and field of view. Your own
 -- mouse-wheel zoom is kept until the situation changes again.
 local _G = _G
-local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+local CZ = _G.LibStub("AceAddon-3.0"):GetAddon("CrosshairZ")
 
 local CreateFrame = _G.CreateFrame
 local GetTime = _G.GetTime
@@ -18,7 +18,7 @@ local math_max = _G.math.max
 local math_min = _G.math.min
 
 local Cam = {}
-TR.Camera = Cam
+CZ.Camera = Cam
 
 local issecret = _G.issecretvalue or function()
   return false
@@ -163,11 +163,11 @@ local DETECT = {
 }
 
 function Cam.CurrentSituation()
-  local P = TR.P
+  local P = CZ.P
   if not P then
     return nil
   end
-  for _, sit in ipairs(TR.CameraSituations) do
+  for _, sit in ipairs(CZ.CameraSituations) do
     local settings = P.situations[sit.key]
     if settings and settings.enabled and DETECT[sit.key] and DETECT[sit.key]() then
       return sit.key
@@ -241,13 +241,13 @@ local function Approach(current, target, rate, elapsed)
 end
 
 local function ApplySituation(key)
-  local P = TR.P
+  local P = CZ.P
   local sit = P.situations[key]
   if not sit then
     return
   end
   SetCVarSafe("cameraZoomSpeed", math_max(4, math_min(50, 10 * (P.camTransition or 1.5))))
-  if P.camHead then
+  if P.camHead and not CZ.MotionSafe() then
     SetCVarSafe("test_cameraHeadMovementStrength", sit.head or 0)
   end
   if key == "skyriding" and P.camSkyridingDynamic then
@@ -255,18 +255,58 @@ local function ApplySituation(key)
   else
     ZoomTo(sit.zoom)
   end
-  TR.DebugPrint("Camera situation: " .. key)
+  CZ.DebugPrint("Camera situation: " .. key)
 end
 
 local sinceCheck, sinceSky = 1, 0
 
+---------------------------------------------------------------------------------------
+--                                   BASE CAMERA                                     --
+---------------------------------------------------------------------------------------
+-- Field of view, max zoom distance, zoom scroll speed and head tracking for everyday play.
+-- The Situational Camera overrides the parts it controls while it's on.
+local baseSaved = nil
+local BASE_CVARS = {"cameraFov", "cameraDistanceMaxZoomFactor", "cameraZoomSpeed", "test_cameraHeadMovementStrength"}
+
+function Cam.ApplyBase()
+  local P = CZ.P
+  if not P then
+    return
+  end
+  if P.baseCamEnabled and not CZ.DynamicCam then
+    if not baseSaved then
+      baseSaved = {}
+      local getter = _G.C_CVar and _G.C_CVar.GetCVar or _G.GetCVar
+      for _, name in ipairs(BASE_CVARS) do
+        baseSaved[name] = Call(getter, name)
+      end
+    end
+    SetCVarSafe("cameraFov", math_max(50, math_min(90, P.baseFov or 90)))
+    SetCVarSafe("cameraDistanceMaxZoomFactor", math_max(1, math_min(2.6, (P.baseMaxZoom or 28.5) / 15)))
+    SetCVarSafe("cameraZoomSpeed", math_max(1, math_min(50, P.baseZoomSpeed or 20)))
+    if not CZ.MotionSafe() then
+      if _G.UIParent and _G.UIParent.UnregisterEvent then
+        pcall(_G.UIParent.UnregisterEvent, _G.UIParent, "EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
+      end
+      SetCVarSafe("test_cameraHeadMovementStrength", P.baseHead or 0)
+    end
+  elseif baseSaved then
+    for name, value in pairs(baseSaved) do
+      if value ~= nil and not issecret(value) then
+        SetCVarSafe(name, value)
+      end
+    end
+    baseSaved = nil
+  end
+end
+
 local function Update(_, elapsed)
-  local P = TR.P
+  local P = CZ.P
   if not P then
     return
   end
 
-  local enabled = P.camEnabled and not TR.DynamicCam
+  local enabled = P.camEnabled and not CZ.DynamicCam
   if not enabled then
     if state.active then
       Cam.Deactivate()
@@ -307,8 +347,8 @@ local function Update(_, elapsed)
   end
 
   -- Shoulder offset and field of view glide to their targets
-  if P.camShoulder then
-    local target = sit.shoulder or 0
+  if P.camShoulder and not CZ.MotionSafe() then
+    local target = (sit.shoulder or 0) * (CZ.shoulderSign or 1)
     if P.camShoulderMountedZero and Bool(_G.IsMounted) then
       target = 0
     end
@@ -360,6 +400,8 @@ function Cam.Deactivate()
   RestoreOriginals()
   state.active = false
   state.situation = nil
+  -- the base camera settings take over again
+  Cam.ApplyBase()
 end
 
 -- Re-applies the current situation (after a setting changed)
@@ -372,7 +414,7 @@ function Cam.ActiveSituationName()
   if not state.active or not state.situation then
     return nil
   end
-  for _, sit in ipairs(TR.CameraSituations) do
+  for _, sit in ipairs(CZ.CameraSituations) do
     if sit.key == state.situation then
       return sit.name
     end
@@ -382,7 +424,7 @@ end
 
 -- Zooms to a situation's distance for a moment so the setting can be previewed
 function Cam.Preview(key)
-  local sit = TR.P and TR.P.situations[key]
+  local sit = CZ.P and CZ.P.situations[key]
   if sit then
     ZoomTo(sit.zoom)
   end
@@ -426,9 +468,11 @@ function Cam.Enable()
   end)
   driver:SetScript("OnUpdate", Update)
 
-  TR.Profiles.OnChange(function()
+  CZ.Profiles.OnChange(function()
+    Cam.ApplyBase()
     Cam.Reapply()
   end)
+  Cam.ApplyBase()
 end
 
 function Cam.Disable()

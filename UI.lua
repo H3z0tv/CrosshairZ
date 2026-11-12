@@ -1,10 +1,10 @@
 ---------------------------------------------------------------------------------------
 --                                  SETTINGS WINDOW                                  --
 ---------------------------------------------------------------------------------------
--- Standalone True Reticle settings window: sidebar navigation, Home page, Patch Notes
+-- Standalone Crosshair Z settings window: sidebar navigation, Home page, Patch Notes
 -- and option pages rendered from the option tables defined in Config.lua.
 local _G = _G
-local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+local CZ = _G.LibStub("AceAddon-3.0"):GetAddon("CrosshairZ")
 
 local CreateFrame = _G.CreateFrame
 local GameTooltip = _G.GameTooltip
@@ -22,15 +22,15 @@ local table_insert = _G.table.insert
 local table_remove = _G.table.remove
 
 local UI = {}
-TR.UI = UI
+CZ.UI = UI
 
 ---------------------------------------------------------------------------------------
 --                                    LOOK & FEEL                                    --
 ---------------------------------------------------------------------------------------
 local FONT = _G.STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-local FRAME_NAME = "TrueReticleOptionsFrame"
+local FRAME_NAME = "CrosshairZOptionsFrame"
 
-local WIN_W, WIN_H = 920, 690
+local WIN_W, WIN_H = 920, 720
 local SIDEBAR_W = 210
 local TOPBAR_H = 34
 local FOOTER_H = 40
@@ -64,7 +64,7 @@ for _, theme in ipairs(THEMES) do
 end
 
 local function Accent()
-  local key = TR.DB and TR.DB.global.uiTheme
+  local key = CZ.DB and CZ.DB.global.uiTheme
   local theme = THEME_BY_KEY[key] or THEMES[1]
   return theme.r, theme.g, theme.b
 end
@@ -234,7 +234,7 @@ local function Switch(parent)
 end
 
 -- Confirmation dialog (used by options marked "confirm")
-_G.StaticPopupDialogs["TRUERETICLE_CONFIRM"] = {
+_G.StaticPopupDialogs["CROSSHAIRZ_CONFIRM"] = {
   text = "%s",
   button1 = _G.YES or "Yes",
   button2 = _G.NO or "No",
@@ -250,13 +250,13 @@ _G.StaticPopupDialogs["TRUERETICLE_CONFIRM"] = {
 }
 
 local function Confirm(text, onAccept)
-  _G.StaticPopup_Show("TRUERETICLE_CONFIRM", text or "Are you sure?", nil, onAccept)
+  _G.StaticPopup_Show("CROSSHAIRZ_CONFIRM", text or "Are you sure?", nil, onAccept)
 end
 
 -- Dropdown menu (modern Menu API; falls back to cycling through values)
 local function OpenMenu(owner, items, isSelected, onSelect)
   if #items == 0 then
-    print(TR.Constants.BasePrintMsg .. "|cff909090: nothing to choose here yet.|r")
+    print(CZ.Constants.BasePrintMsg .. "|cff909090: nothing to choose here yet.|r")
     return
   end
   local MenuUtil = _G.MenuUtil
@@ -332,7 +332,7 @@ local function Get(opt)
 end
 
 local function PrintMsg(msg)
-  print(TR.Constants.BasePrintMsg .. "|cff909090: " .. tostring(msg) .. "|r")
+  print(CZ.Constants.BasePrintMsg .. "|cff909090: " .. tostring(msg) .. "|r")
 end
 
 local function DoSet(opt, value)
@@ -685,27 +685,42 @@ local function InputControl(parent, opt, disabledFn, refreshers)
     eb:SetText(tostring(Get(opt) or ""))
   end
 
-  eb:SetScript("OnEnterPressed", function(self)
+  -- Saves when you press Enter or click away; Esc cancels.
+  local cancelled, enterPressed = false, false
+  local function Commit(self)
     if readOnly then
-      self:ClearFocus()
       return
     end
     local value = self:GetText()
+    if value == tostring(Get(opt) or "") then
+      return
+    end
     if opt.validate then
       local ok, result = pcall(opt.validate, INFO, value)
       if ok and result ~= true and result ~= nil then
         PrintMsg(StripColors(tostring(result)):gsub("\n+", " "))
-        self:ClearFocus()
         Revert()
         return
       end
     end
-    self:ClearFocus()
     Set(opt, value)
+  end
+  eb:SetScript("OnEnterPressed", function(self)
+    enterPressed = true
+    self:ClearFocus()
   end)
   eb:SetScript("OnEscapePressed", function(self)
+    cancelled = true
     self:ClearFocus()
-    Revert()
+  end)
+  eb:SetScript("OnEditFocusLost", function(self)
+    local wasCancelled, wasEnter = cancelled, enterPressed
+    cancelled, enterPressed = false, false
+    if wasCancelled or (opt.enterOnly and not wasEnter) then
+      Revert()
+      return
+    end
+    Commit(self)
   end)
   eb:SetScript("OnEditFocusGained", function(self)
     self:HighlightText()
@@ -770,8 +785,20 @@ local function MultilineControl(parent, opt, disabledFn, refreshers)
     local value = self:GetVerticalScroll() - delta * 28
     self:SetVerticalScroll(math_max(0, math_min(self:GetVerticalScrollRange(), value)))
   end)
+  local mlCancelled = false
   eb:SetScript("OnEscapePressed", function(self)
+    mlCancelled = true
     self:ClearFocus()
+  end)
+  eb:SetScript("OnEditFocusLost", function(self)
+    if mlCancelled then
+      mlCancelled = false
+      self:SetText(tostring(Get(opt) or ""))
+      return
+    end
+    if self:GetText() ~= tostring(Get(opt) or "") then
+      Set(opt, self:GetText())
+    end
   end)
   eb:SetScript("OnCursorChanged", function(_, _, y, _, cursorH)
     local top = sf:GetVerticalScroll()
@@ -785,12 +812,18 @@ local function MultilineControl(parent, opt, disabledFn, refreshers)
   end)
 
   local save = Button(f, "Save", 90, 22, function()
-    eb:ClearFocus()
-    Set(opt, eb:GetText())
+    if eb:HasFocus() then
+      eb:ClearFocus() -- saves through OnEditFocusLost
+    elseif eb:GetText() ~= tostring(Get(opt) or "") then
+      Set(opt, eb:GetText())
+    end
   end)
   save:SetPoint("BOTTOMRIGHT", -10, 8)
   local revert = Button(f, "Revert", 90, 22, function()
-    eb:ClearFocus()
+    if eb:HasFocus() then
+      mlCancelled = true
+      eb:ClearFocus()
+    end
     eb:SetText(tostring(Get(opt) or ""))
   end)
   revert:SetPoint("RIGHT", save, "LEFT", -GAP, 0)
@@ -1251,7 +1284,7 @@ end
 
 local function ConfigArgs(index, exclude, extra)
   return function()
-    local source = TR.Config.OptionCategories[index].table.args
+    local source = CZ.Config.OptionCategories[index].table.args
     local args = {}
     for key, opt in pairs(source) do
       if not (exclude and exclude[key]) then
@@ -1268,19 +1301,34 @@ local function ConfigArgs(index, exclude, extra)
 end
 
 local function CrosshairArgs()
-  local group = TR.Config.OptionCategories[2].table.args.CrosshairGroup
+  local group = CZ.Config.OptionCategories[2].table.args.CrosshairGroup
   local args = {
-    header = {type = "header", name = "Crosshair", order = 0}
+    header = {type = "header", name = "Crosshair", order = 0},
+    preview = {
+      type = "custom",
+      order = 0.5,
+      create = function(parent, width)
+        return CZ.Features.CreatePreview(parent, width)
+      end
+    }
   }
   for key, opt in pairs(group.args) do
     args[key] = opt
   end
+  args.styleBrowser = {
+    type = "custom",
+    order = 0.6,
+    create = function(parent, width)
+      return UI.CreateStyleBrowser(parent, width)
+    end
+  }
+  args.crosshairExtra = CZ.Config.Features.crosshairExtra
   return args
 end
 
 local function AdvancedExtra()
   return {
-    debugModeToggle = TR.Config.AboutOptions.args.debugModeToggle
+    debugModeToggle = CZ.Config.AboutOptions.args.debugModeToggle
   }
 end
 
@@ -1297,7 +1345,7 @@ UI.Pages = {
   {
     key = "notes",
     title = "Patch Notes",
-    subtitle = "What's new in True Reticle",
+    subtitle = "What's new in Crosshair Z",
     section = "Setup"
   },
   {
@@ -1305,7 +1353,9 @@ UI.Pages = {
     title = "Mouse Look",
     subtitle = "Keybinds · Camera · Auto cursor unlock",
     section = "Combat",
-    build = OptionsPage(ConfigArgs(1))
+    build = OptionsPage(ConfigArgs(1, nil, function()
+      return {freeLookExtra = CZ.Config.Features.freeLookExtra}
+    end))
   },
   {
     key = "reticle",
@@ -1314,7 +1364,7 @@ UI.Pages = {
     section = "Combat",
     build = OptionsPage(ConfigArgs(2, {CrosshairGroup = true, spacing3 = true})),
     navToggle = function()
-      return TR.Config.OptionCategories[2].table.args.reticleTargeting
+      return CZ.Config.OptionCategories[2].table.args.reticleTargeting
     end
   },
   {
@@ -1324,7 +1374,7 @@ UI.Pages = {
     section = "Combat",
     build = OptionsPage(CrosshairArgs),
     navToggle = function()
-      return TR.Config.OptionCategories[2].table.args.CrosshairGroup.args.crosshair
+      return CZ.Config.OptionCategories[2].table.args.CrosshairGroup.args.crosshair
     end
   },
   {
@@ -1337,13 +1387,25 @@ UI.Pages = {
   {
     key = "hud",
     title = "Reticle HUD",
-    subtitle = "Health, power, target and cast arcs · Resource pips · Hit & kill feedback",
+    subtitle = "Health, power, target and cast arcs · Class resource orbs · Hit & kill feedback",
     section = "HUD & Camera",
     build = OptionsPage(function()
-      return TR.Config.Features.hud.args
+      return CZ.Config.Features.hud.args
     end),
     navToggle = function()
-      return TR.Config.Features.hud.args.hudEnabled
+      return CZ.Config.Features.hud.args.hudEnabled
+    end
+  },
+  {
+    key = "assist",
+    title = "Assist HUD",
+    subtitle = "Next suggested cast · Interaction prompts",
+    section = "HUD & Camera",
+    build = OptionsPage(function()
+      return CZ.Config.Features.assist.args
+    end),
+    navToggle = function()
+      return CZ.Config.Features.assist.args.assistEnabled
     end
   },
   {
@@ -1352,10 +1414,10 @@ UI.Pages = {
     subtitle = "Range colors · Hide rules · Head tracking · Screen effects",
     section = "HUD & Camera",
     build = OptionsPage(function()
-      return TR.Config.Features.smart.args
+      return CZ.Config.Features.smart.args
     end),
     navToggle = function()
-      return TR.Config.Features.smart.args.smartEnabled
+      return CZ.Config.Features.smart.args.smartEnabled
     end
   },
   {
@@ -1364,11 +1426,20 @@ UI.Pages = {
     subtitle = "Zoom, shoulder, head movement and field of view per situation",
     section = "HUD & Camera",
     build = OptionsPage(function()
-      return TR.Config.Features.camera.args
+      return CZ.Config.Features.camera.args
     end),
     navToggle = function()
-      return TR.Config.Features.camera.args.camEnabled
+      return CZ.Config.Features.camera.args.camEnabled
     end
+  },
+  {
+    key = "composer",
+    title = "Macro Composer",
+    subtitle = "Build cast macros aimed at your crosshair, mouseover or cursor",
+    section = "Other",
+    build = OptionsPage(function()
+      return CZ.Config.Features.composer.args
+    end)
   },
   {
     key = "profiles",
@@ -1376,7 +1447,7 @@ UI.Pages = {
     subtitle = "Per-character and per-specialization settings",
     section = "Other",
     build = OptionsPage(function()
-      return TR.Config.Features.BuildProfiles()
+      return CZ.Config.Features.BuildProfiles()
     end)
   },
   {
@@ -1427,9 +1498,9 @@ end
 
 local function CountActiveClicks()
   local count = 0
-  local location = TR.GetBindingsLocation()
-  for _, button in pairs(TR.Constants.ButtonsToOverride) do
-    local settings = TR.DB[location].bindings[button]
+  local location = CZ.GetBindingsLocation()
+  for _, button in pairs(CZ.Constants.ButtonsToOverride) do
+    local settings = CZ.DB[location].bindings[button]
     if settings and settings.enabled then
       count = count + 1
     end
@@ -1480,39 +1551,39 @@ BuildHome = function(child, width, refreshers)
   AccentTex(heroGlow)
   local heroTitle = Text(hero, 18, C.text)
   heroTitle:SetPoint("TOPLEFT", 16, -12)
-  heroTitle:SetText("True Reticle")
+  heroTitle:SetText("Crosshair Z")
   local heroSub = Text(hero, 12, C.muted)
   heroSub:SetPoint("TOPLEFT", 16, -38)
   local heroLogo = hero:CreateTexture(nil, "ARTWORK")
   heroLogo:SetSize(48, 48)
   heroLogo:SetPoint("RIGHT", -12, 0)
-  heroLogo:SetTexture(TR.Constants.Logo)
+  heroLogo:SetTexture(CZ.Constants.Logo)
   y = y + 64 + 14
 
   -- Stat cards (3 per row)
   local cardW = math_floor((width - GAP * 2) / 3)
   local stats = {
     {"Toggle Key", function()
-      local key = _G.GetBindingKey("TRUERETICLE_TOGGLE")
+      local key = _G.GetBindingKey("CROSSHAIRZ_TOGGLE")
       return key and (_G.GetBindingText and _G.GetBindingText(key) or key) or "|cff909090Not bound|r"
     end},
     {"Reticle Targeting", function()
-      return TR.DB.char.reticleTargeting and (AccentHex() .. "On|r") or "|cff909090Off|r"
+      return CZ.DB.char.reticleTargeting and (AccentHex() .. "On|r") or "|cff909090Off|r"
     end},
     {"Crosshair", function()
-      if not TR.DB.global.crosshair then
+      if not CZ.DB.global.crosshair then
         return "|cff909090Hidden|r"
       end
-      return TR.DB.global.crosshairAppearance and TR.DB.global.crosshairAppearance.Name or "Default"
+      return CZ.DB.global.crosshairAppearance and CZ.DB.global.crosshairAppearance.Name or "Default"
     end},
     {"Click Casting", function()
-      return CountActiveClicks() .. " / " .. #TR.Constants.ButtonsToOverride .. " active"
+      return CountActiveClicks() .. " / " .. #CZ.Constants.ButtonsToOverride .. " active"
     end},
     {"Client", function()
       return ClientName() == "RETAIL" and "Retail" or "Forever"
     end},
     {"Profile", function()
-      return TR.ActiveProfileName or "Default"
+      return CZ.ActiveProfileName or "Default"
     end}
   }
   local statCards = {}
@@ -1533,25 +1604,25 @@ BuildHome = function(child, width, refreshers)
 
   local actions = {
     {"Keybindings", OpenKeybindings, "Open the game's keybinding settings."},
-    {"Macros", OpenMacros, "Open the macro window. True Reticle adds example TR_ macros there."},
+    {"Macros", OpenMacros, "Open the macro window. Crosshair Z adds example CZ_ macros there."},
     {"Patch Notes", function()
       UI.ShowPage("notes")
-    end, "See what's new in True Reticle."},
+    end, "See what's new in Crosshair Z."},
     {"Reload UI", function()
       _G.ReloadUI()
     end, "Reload the interface."},
     {"Reset Settings", function()
-      Confirm(TR.METADATA["TITLE"] .. "\n\nReset all True Reticle settings to default?\nThis reloads your UI.", function()
-        TR:OnResetDB()
+      Confirm(CZ.METADATA["TITLE"] .. "\n\nReset all Crosshair Z settings to default?\nThis reloads your UI.", function()
+        CZ:OnResetDB()
       end)
-    end, "Restore every True Reticle setting to its default (reloads the UI)."},
+    end, "Restore every Crosshair Z setting to its default (reloads the UI)."},
     {"Undo All Changes", function()
-      Confirm(TR.METADATA["TITLE"] ..
-                "\n\nRevert every game setting True Reticle changed and disable the addon?\nThis reloads your UI.",
+      Confirm(CZ.METADATA["TITLE"] ..
+                "\n\nRevert every game setting Crosshair Z changed and disable the addon?\nThis reloads your UI.",
         function()
-          TR.UndoChanges()
+          CZ.UndoChanges()
         end)
-    end, "Same as /trundo: restores game settings and disables True Reticle."}
+    end, "Same as /czundo: restores game settings and disables Crosshair Z."}
   }
   for i, action in ipairs(actions) do
     local col = (i - 1) % 3
@@ -1587,7 +1658,7 @@ BuildHome = function(child, width, refreshers)
   tip:SetJustifyV("TOP")
   tip:SetWidth(width)
   tip:SetPoint("TOPLEFT", 0, -y)
-  tip:SetText("Tip: type /tr to open this window, /trundo to revert every game setting True Reticle changed.")
+  tip:SetText("Tip: type /cz to open this window, /czundo to revert every game setting Crosshair Z changed.")
   y = y + math_floor(tip:GetStringHeight()) + 12
 
   refreshers[#refreshers + 1] = function()
@@ -1621,7 +1692,7 @@ end
 ---------------------------------------------------------------------------------------
 BuildPatchNotes = function(child, width)
   local y = 4
-  for _, entry in ipairs(TR.Changelog or {}) do
+  for _, entry in ipairs(CZ.Changelog or {}) do
     local title = SectionTitle(child, "Version " .. entry.version, width)
     title:SetPoint("TOPLEFT", 0, -y)
     title:SetWidth(width)
@@ -1681,7 +1752,7 @@ function UI.ApplyTheme()
     fs:SetTextColor(r, g, b)
   end
   if frame and frame.themeButton then
-    frame.themeButton.text:SetText(TR.DB.global.uiTheme or "Green")
+    frame.themeButton.text:SetText(CZ.DB.global.uiTheme or "Green")
   end
   UI.Refresh()
 end
@@ -1718,10 +1789,18 @@ local function RememberPage(key)
   end
 end
 
+local function ReleaseTextFocus()
+  local focus = _G.GetCurrentKeyBoardFocus and _G.GetCurrentKeyBoardFocus()
+  if focus and focus.ClearFocus then
+    focus:ClearFocus() -- the field saves itself when it loses focus
+  end
+end
+
 function UI.ShowPage(key)
   if not frame or not frame.scroll then
     return
   end
+  ReleaseTextFocus()
   local page = PAGE_BY_KEY[key] or PAGE_BY_KEY.home
 
   if currentPage and currentPage.child then
@@ -1745,7 +1824,7 @@ function UI.ShowPage(key)
 
   currentPage = page
   RememberPage(page.key)
-  TR.DB.global.lastPage = page.key
+  CZ.DB.global.lastPage = page.key
 
   frame.scroll:SetScrollChild(page.child)
   page.child:Show()
@@ -1861,10 +1940,10 @@ local function BuildSidebar(parent)
   local logo = side:CreateTexture(nil, "ARTWORK")
   logo:SetSize(44, 44)
   logo:SetPoint("TOPLEFT", 10, -10)
-  logo:SetTexture(TR.Constants.Logo)
+  logo:SetTexture(CZ.Constants.Logo)
   local title = Text(side, 17, C.text)
   title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 8, -6)
-  title:SetText("True Reticle")
+  title:SetText("Crosshair Z")
   local client = Text(side, 10, C.text)
   client:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
   client:SetText(ClientName())
@@ -1880,7 +1959,7 @@ local function BuildSidebar(parent)
   local nav = CreateFrame("Frame", nil, side)
   nav:SetPoint("TOPLEFT", 1, -72)
   nav:SetPoint("TOPRIGHT", -1, -72)
-  nav:SetHeight(420)
+  nav:SetHeight(470)
 
   local y = 0
   local lastSection
@@ -1903,16 +1982,19 @@ local function BuildSidebar(parent)
   -- Tools
   local version = Text(side, 10, C.muted)
   version:SetPoint("BOTTOMLEFT", 12, 10)
-  version:SetText("v" .. (TR.METADATA["VERSION"] or "?"))
+  version:SetText("v" .. (CZ.METADATA["VERSION"] or "?"))
 
   local tools = {
+    {"Setup Wizard", function()
+      UI.OpenWizard()
+    end},
     {"Keybindings", OpenKeybindings},
     {"Macros", OpenMacros},
     {"Undo Changes", function()
-      Confirm(TR.METADATA["TITLE"] ..
-                "\n\nRevert every game setting True Reticle changed and disable the addon?\nThis reloads your UI.",
+      Confirm(CZ.METADATA["TITLE"] ..
+                "\n\nRevert every game setting Crosshair Z changed and disable the addon?\nThis reloads your UI.",
         function()
-          TR.UndoChanges()
+          CZ.UndoChanges()
         end)
     end}
   }
@@ -1953,26 +2035,26 @@ local function BuildTopBar(parent, contentLeft)
 
   local version = Text(parent, 12, C.text)
   version:SetPoint("RIGHT", close, "LEFT", -12, 0)
-  version:SetText("v" .. (TR.METADATA["VERSION"] or "?"))
+  version:SetText("v" .. (CZ.METADATA["VERSION"] or "?"))
 
   local themeLabel = Text(parent, 12, C.muted)
   themeLabel:SetPoint("TOPLEFT", contentLeft, -MARGIN - 6)
   themeLabel:SetText("Theme")
 
-  local themeButton = Button(parent, TR.DB.global.uiTheme or "Green", 110, 22)
+  local themeButton = Button(parent, CZ.DB.global.uiTheme or "Green", 110, 22)
   themeButton:SetPoint("LEFT", themeLabel, "RIGHT", 8, 0)
   themeButton.bg:SetColorTexture(C.input[1], C.input[2], C.input[3], 1)
   themeButton.tipTitle = "Theme"
-  themeButton.tipText = "Accent color of the True Reticle window."
+  themeButton.tipText = "Accent color of the Crosshair Z window."
   themeButton:SetScript("OnClick", function(self)
     local items = {}
     for _, theme in ipairs(THEMES) do
       items[#items + 1] = {key = theme.key, text = theme.key}
     end
     OpenMenu(self, items, function(key)
-      return (TR.DB.global.uiTheme or "Green") == key
+      return (CZ.DB.global.uiTheme or "Green") == key
     end, function(key)
-      TR.DB.global.uiTheme = key
+      CZ.DB.global.uiTheme = key
       UI.ApplyTheme()
     end)
   end)
@@ -2002,8 +2084,8 @@ local function BuildTopBar(parent, contentLeft)
   slider:SetThumbTexture(thumb)
   scaleValue:SetPoint("LEFT", slider, "RIGHT", 8, 0)
 
-  slider:SetValue(TR.DB.global.panelScale or 1)
-  scaleValue:SetText(string.format("%.2f", TR.DB.global.panelScale or 1))
+  slider:SetValue(CZ.DB.global.panelScale or 1)
+  scaleValue:SetText(string.format("%.2f", CZ.DB.global.panelScale or 1))
   -- apply the new scale when the mouse is released so the window doesn't jump while dragging
   slider:SetScript("OnValueChanged", function(_, value)
     value = RoundToStep(value, 0.7, 0.05)
@@ -2011,7 +2093,7 @@ local function BuildTopBar(parent, contentLeft)
   end)
   slider:SetScript("OnMouseUp", function(self)
     local value = RoundToStep(self:GetValue(), 0.7, 0.05)
-    TR.DB.global.panelScale = value
+    CZ.DB.global.panelScale = value
     parent:SetScale(value)
   end)
   end)
@@ -2031,20 +2113,28 @@ local function BuildWindow()
   frame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local point, _, relPoint, x, y = self:GetPoint()
-    TR.DB.global.panelPoint = {point, relPoint, x, y}
+    CZ.DB.global.panelPoint = {point, relPoint, x, y}
   end)
   frame:Hide()
 
   Fill(frame, "BACKGROUND", C.window)
   Border(frame, C.border)
 
-  local saved = TR.DB.global.panelPoint
+  -- 0.1.3: the window now opens on the left so the crosshair stays visible while editing
+  if not CZ.DB.global.panelPointV2 then
+    CZ.DB.global.panelPointV2 = true
+    CZ.DB.global.panelPoint = nil
+  end
+  local saved = CZ.DB.global.panelPoint
   if saved then
     frame:SetPoint(saved[1], _G.UIParent, saved[2], saved[3], saved[4])
   else
-    frame:SetPoint("CENTER")
+    local scale = CZ.DB.global.panelScale or 1
+    local uiWidth = _G.UIParent:GetWidth() or 0
+    local px = math_max(10, uiWidth / 2 - 140 - WIN_W * scale)
+    frame:SetPoint("LEFT", _G.UIParent, "LEFT", px / scale, 0)
   end
-  frame:SetScale(TR.DB.global.panelScale or 1)
+  frame:SetScale(CZ.DB.global.panelScale or 1)
 
   -- Esc closes the window
   table_insert(_G.UISpecialFrames, FRAME_NAME)
@@ -2144,8 +2234,20 @@ local function BuildWindow()
     end
   end)
 
+  -- Live preview: crosshair, HUD and Assist HUD stay visible while the window is open
+  local function RefreshCrosshairVisibility()
+    if CZ.DisplayCrosshair then
+      local looking = _G.IsMouselooking and _G.IsMouselooking()
+      CZ.DisplayCrosshair(CZ.crosshairWanted or looking or false)
+    end
+  end
   frame:SetScript("OnShow", function()
     UI.Refresh()
+    RefreshCrosshairVisibility()
+  end)
+  frame:HookScript("OnHide", function()
+    -- RefreshCrosshairVisibility runs after the frame is hidden, so live editing is off
+    RefreshCrosshairVisibility()
   end)
 end
 
@@ -2169,8 +2271,13 @@ function UI.Open(pageKey)
   UI.ShowPage(pageKey or (currentPage and currentPage.key) or "home")
 end
 
+function UI.IsOpen()
+  return frame ~= nil and frame:IsShown()
+end
+
 function UI.Hide()
   if frame then
+    ReleaseTextFocus()
     frame:Hide()
   end
 end
@@ -2198,20 +2305,20 @@ function UI.RegisterBlizzardPanel()
   local logo = panel:CreateTexture(nil, "ARTWORK")
   logo:SetSize(72, 72)
   logo:SetPoint("TOPLEFT", 20, -20)
-  logo:SetTexture(TR.Constants.Logo)
+  logo:SetTexture(CZ.Constants.Logo)
 
   local title = Text(panel, 22, C.text)
   title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 14, -10)
-  title:SetText("True Reticle")
+  title:SetText("Crosshair Z")
 
   local sub = Text(panel, 12, C.muted)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
-  sub:SetText("v" .. (TR.METADATA["VERSION"] or "?") .. "  -  settings live in their own window.")
+  sub:SetText("v" .. (CZ.METADATA["VERSION"] or "?") .. "  -  settings live in their own window.")
 
   local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   open:SetSize(200, 28)
   open:SetPoint("TOPLEFT", logo, "BOTTOMLEFT", 0, -18)
-  open:SetText("Open True Reticle")
+  open:SetText("Open Crosshair Z")
   open:SetScript("OnClick", function()
     if _G.SettingsPanel then
       pcall(_G.HideUIPanel, _G.SettingsPanel)
@@ -2221,9 +2328,391 @@ function UI.RegisterBlizzardPanel()
 
   local hint = Text(panel, 12, C.muted)
   hint:SetPoint("TOPLEFT", open, "BOTTOMLEFT", 0, -10)
-  hint:SetText("Or type /tr in chat.")
+  hint:SetText("Or type /cz in chat.")
 
-  local category = Settings.RegisterCanvasLayoutCategory(panel, "True Reticle")
+  local category = Settings.RegisterCanvasLayoutCategory(panel, "Crosshair Z")
   Settings.RegisterAddOnCategory(category)
-  TR.SettingsCategoryID = category.GetID and category:GetID() or category.ID
+  CZ.SettingsCategoryID = category.GetID and category:GetID() or category.ID
+end
+
+---------------------------------------------------------------------------------------
+--                               CROSSHAIR STYLE BROWSER                             --
+---------------------------------------------------------------------------------------
+function UI.CreateStyleBrowser(parent, width)
+  local appearanceOpt = CZ.Config.OptionCategories[2].table.args.CrosshairGroup.args.crosshairAppearance
+  local names = {}
+  for name in pairs(CZ.Constants.CrosshairTextureObj) do
+    names[#names + 1] = name
+  end
+  table_sort(names)
+
+  local tile, gap = 52, 6
+  local perRow = math_max(1, math_floor((width + gap) / (tile + gap)))
+  local rows = math.ceil(#names / perRow)
+  local height = 24 + rows * (tile + gap)
+
+  local box = CreateFrame("Frame", nil, parent)
+  box:SetHeight(height)
+  local title = Text(box, 12, C.text)
+  title:SetPoint("TOPLEFT", 0, -2)
+  title:SetText("Crosshair Styles  |cff909090(click to use)|r")
+
+  local tiles = {}
+  for i, name in ipairs(names) do
+    local b = CreateFrame("Button", nil, box)
+    b:SetSize(tile, tile)
+    local col = (i - 1) % perRow
+    local row = math_floor((i - 1) / perRow)
+    b:SetPoint("TOPLEFT", col * (tile + gap), -(22 + row * (tile + gap)))
+    Fill(b, "BACKGROUND", C.input)
+    Border(b, C.border)
+    local tex = b:CreateTexture(nil, "ARTWORK")
+    tex:SetPoint("TOPLEFT", 6, -6)
+    tex:SetPoint("BOTTOMRIGHT", -6, 6)
+    tex:SetTexture(CZ.Constants.CrosshairTextureObj[name].Base)
+    b.tipTitle = name
+    b.tipText = "Use this crosshair style."
+    b:SetScript("OnEnter", function(self)
+      self:SetBorderColor(Accent())
+      ShowTip(self)
+    end)
+    b:SetScript("OnLeave", function(self)
+      if not self.selected then
+        self:SetBorderColor(C.border[1], C.border[2], C.border[3], C.border[4])
+      end
+      HideTip()
+    end)
+    b:SetScript("OnClick", function()
+      Set(appearanceOpt, name)
+    end)
+    b.name = name
+    tiles[i] = b
+  end
+
+  function box.Refresh()
+    local current = CZ.DB.global.crosshairAppearance and CZ.DB.global.crosshairAppearance.Name
+    for _, b in ipairs(tiles) do
+      b.selected = (b.name == current)
+      if b.selected then
+        b:SetBorderColor(Accent())
+      else
+        b:SetBorderColor(C.border[1], C.border[2], C.border[3], C.border[4])
+      end
+    end
+  end
+  return box, height
+end
+
+---------------------------------------------------------------------------------------
+--                                 MACRO PREVIEW BOX                                 --
+---------------------------------------------------------------------------------------
+function UI.CreateMacroPreview(parent, width)
+  local height = 96
+  local box = CreateFrame("Frame", nil, parent)
+  box:SetHeight(height)
+  Fill(box, "BACKGROUND", C.input)
+  Border(box, C.border)
+  local label = Text(box, 11, C.muted)
+  label:SetPoint("TOPLEFT", 10, -8)
+  label:SetText("Macro text")
+  local body = Text(box, 12, C.text)
+  body:SetFont("Fonts\\ARIALN.TTF", 13, "")
+  body:SetWordWrap(true)
+  body:SetJustifyV("TOP")
+  body:SetPoint("TOPLEFT", 10, -26)
+  body:SetWidth(width - 20)
+  function box.Refresh()
+    local text = CZ.Config.Features.ComposeMacroText()
+    body:SetText(text ~= "" and text or "|cff909090Type a spell name to see the macro.|r")
+  end
+  return box, height
+end
+
+---------------------------------------------------------------------------------------
+--                                   SETUP WIZARD                                    --
+---------------------------------------------------------------------------------------
+local wizard
+
+local function WizardSteps()
+  local L = CZ.Config.OptionCategories
+  local F = CZ.Config.Features
+  local camera = L[1].table.args.cameraFeatures.args
+  local crosshair = L[2].table.args.CrosshairGroup.args
+  return {
+    {
+      title = "Welcome to Crosshair Z",
+      text = "A few quick steps to set up action combat: your Free Look key, your crosshair, the HUD and the camera.\n\nYou can change everything later with /cz.",
+      args = {}
+    },
+    {
+      title = "Free Look Key",
+      text = "Free Look turns the camera with your mouse, no right click needed. Pick the key that turns it on and off.",
+      args = {toggle = L[1].table.args.toggle, hold = L[1].table.args.hold}
+    },
+    {
+      title = "Your Crosshair",
+      text = "Pick a style. It turns red on enemies and green on friendlies.",
+      args = {
+        browser = {type = "custom", order = 1, create = function(parent, width)
+          return UI.CreateStyleBrowser(parent, width)
+        end},
+        size = crosshair.crosshairSize
+      }
+    },
+    {
+      title = "HUD",
+      text = "Extra information around the crosshair.",
+      args = {
+        hud = F.hud.args.hudEnabled,
+        assist = F.assist.args.assistEnabled,
+        smart = F.smart.args.smartEnabled
+      }
+    },
+    {
+      title = "Camera & Comfort",
+      text = "The Action Camera puts the view over your shoulder. If camera movement makes you uncomfortable, turn on Motion Sickness Protection.",
+      args = {
+        motion = F.camera.args.comfort.args.motionSickness,
+        action = camera.actionCamera,
+        situational = F.camera.args.camEnabled
+      }
+    },
+    {
+      title = "All Set",
+      text = "Press your Free Look key in the world and start aiming.\n\nType /cz any time to open the settings, or /cz wizard to run this again.",
+      args = {}
+    }
+  }
+end
+
+local function BuildWizard()
+  wizard = CreateFrame("Frame", "CrosshairZWizard", _G.UIParent)
+  wizard:SetSize(640, 520)
+  wizard:SetPoint("CENTER")
+  wizard:SetFrameStrata("DIALOG")
+  wizard:SetMovable(true)
+  wizard:EnableMouse(true)
+  wizard:RegisterForDrag("LeftButton")
+  wizard:SetScript("OnDragStart", wizard.StartMoving)
+  wizard:SetScript("OnDragStop", wizard.StopMovingOrSizing)
+  Fill(wizard, "BACKGROUND", C.window)
+  Border(wizard, C.border)
+  table_insert(_G.UISpecialFrames, "CrosshairZWizard")
+
+  local logo = wizard:CreateTexture(nil, "ARTWORK")
+  logo:SetSize(48, 48)
+  logo:SetPoint("TOPLEFT", 16, -14)
+  logo:SetTexture(CZ.Constants.Logo)
+  wizard.title = Text(wizard, 20, C.text)
+  wizard.title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 12, -4)
+  wizard.stepText = Text(wizard, 11, C.text)
+  wizard.stepText:SetPoint("TOPLEFT", wizard.title, "BOTTOMLEFT", 0, -6)
+  AccentText(wizard.stepText)
+
+  wizard.body = Text(wizard, 13, C.muted)
+  wizard.body:SetWordWrap(true)
+  wizard.body:SetJustifyV("TOP")
+  wizard.body:SetPoint("TOPLEFT", 18, -80)
+  wizard.body:SetWidth(604)
+
+  wizard.back = Button(wizard, "Back", 110, 28)
+  wizard.back:SetPoint("BOTTOMLEFT", 16, 14)
+  wizard.skip = Button(wizard, "Skip Setup", 110, 28)
+  wizard.skip:SetPoint("BOTTOM", 0, 14)
+  wizard.next = Button(wizard, "Next", 110, 28)
+  wizard.next:SetPoint("BOTTOMRIGHT", -16, 14)
+  wizard.pages = {}
+  wizard:Hide()
+end
+
+local function ShowWizardStep(index)
+  local steps = wizard.steps
+  index = math_max(1, math_min(#steps, index))
+  wizard.index = index
+  local step = steps[index]
+  wizard.title:SetText(step.title)
+  wizard.stepText:SetText("Step " .. index .. " of " .. #steps)
+  wizard.body:SetText(step.text)
+  for _, page in pairs(wizard.pages) do
+    page:Hide()
+  end
+  local page = wizard.pages[index]
+  if not page then
+    page = CreateFrame("Frame", nil, wizard)
+    local top = 80 + math_floor(wizard.body:GetStringHeight()) + 16
+    page:SetPoint("TOPLEFT", 18, -top)
+    page:SetSize(604, 380 - top + 80)
+    page.refreshers = {}
+    local layout = NewLayout(page, 604, 0, 0)
+    RenderArgs(layout, step.args, function()
+      return false
+    end, page.refreshers)
+    layout:Flush()
+    wizard.pages[index] = page
+  end
+  page:Show()
+  for _, refresh in ipairs(page.refreshers) do
+    pcall(refresh)
+  end
+  wizard.back:SetShown(index > 1)
+  wizard.next.text:SetText(index == #steps and "Finish" or "Next")
+  wizard.skip:SetShown(index < #steps)
+end
+
+function UI.OpenWizard()
+  if InCombatLockdown() then
+    PrintMsg("The setup wizard can't open in combat.")
+    return
+  end
+  if not wizard then
+    BuildWizard()
+    wizard.steps = WizardSteps()
+    wizard.back:SetScript("OnClick", function()
+      ShowWizardStep(wizard.index - 1)
+    end)
+    wizard.next:SetScript("OnClick", function()
+      if wizard.index >= #wizard.steps then
+        CZ.DB.global.wizardDone = true
+        wizard:Hide()
+      else
+        ShowWizardStep(wizard.index + 1)
+      end
+    end)
+    wizard.skip:SetScript("OnClick", function()
+      CZ.DB.global.wizardDone = true
+      wizard:Hide()
+    end)
+  end
+  UI.Hide()
+  wizard:Show()
+  ShowWizardStep(1)
+end
+
+-- the wizard's controls refresh like the main window's
+local baseRefresh = UI.Refresh
+function UI.Refresh()
+  baseRefresh()
+  if wizard and wizard:IsShown() and wizard.index and wizard.pages[wizard.index] then
+    for _, refresh in ipairs(wizard.pages[wizard.index].refreshers) do
+      pcall(refresh)
+    end
+  end
+end
+
+---------------------------------------------------------------------------------------
+--                                WHAT'S NEW POPUP                                   --
+---------------------------------------------------------------------------------------
+local whatsNew
+
+local function ShowWhatsNew()
+  local entry = CZ.Changelog and CZ.Changelog[1]
+  if not entry then
+    return
+  end
+  if not whatsNew then
+    whatsNew = CreateFrame("Frame", "CrosshairZWhatsNew", _G.UIParent)
+    whatsNew:SetSize(520, 380)
+    whatsNew:SetPoint("CENTER", 0, 60)
+    whatsNew:SetFrameStrata("DIALOG")
+    whatsNew:EnableMouse(true)
+    whatsNew:SetMovable(true)
+    whatsNew:RegisterForDrag("LeftButton")
+    whatsNew:SetScript("OnDragStart", whatsNew.StartMoving)
+    whatsNew:SetScript("OnDragStop", whatsNew.StopMovingOrSizing)
+    Fill(whatsNew, "BACKGROUND", C.window)
+    Border(whatsNew, C.border)
+    table_insert(_G.UISpecialFrames, "CrosshairZWhatsNew")
+
+    local logo = whatsNew:CreateTexture(nil, "ARTWORK")
+    logo:SetSize(40, 40)
+    logo:SetPoint("TOPLEFT", 14, -12)
+    logo:SetTexture(CZ.Constants.Logo)
+    whatsNew.title = Text(whatsNew, 17, C.text)
+    whatsNew.title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 10, -3)
+    whatsNew.sub = Text(whatsNew, 11, C.text)
+    whatsNew.sub:SetPoint("TOPLEFT", whatsNew.title, "BOTTOMLEFT", 0, -4)
+    AccentText(whatsNew.sub)
+
+    local sf = CreateFrame("ScrollFrame", nil, whatsNew)
+    sf:SetPoint("TOPLEFT", 16, -66)
+    sf:SetPoint("BOTTOMRIGHT", -16, 52)
+    sf:EnableMouseWheel(true)
+    sf:SetScript("OnMouseWheel", function(self, delta)
+      local v = self:GetVerticalScroll() - delta * 30
+      self:SetVerticalScroll(math_max(0, math_min(self:GetVerticalScrollRange(), v)))
+    end)
+    local child = CreateFrame("Frame", nil, sf)
+    child:SetSize(488, 10)
+    sf:SetScrollChild(child)
+    whatsNew.child = child
+
+    local close = Button(whatsNew, "Close", 110, 26, function()
+      whatsNew:Hide()
+    end)
+    close:SetPoint("BOTTOMRIGHT", -14, 14)
+    local all = Button(whatsNew, "All Patch Notes", 140, 26, function()
+      whatsNew:Hide()
+      UI.Open("notes")
+    end)
+    all:SetPoint("BOTTOMLEFT", 14, 14)
+    whatsNew.lines = {}
+  end
+
+  whatsNew.title:SetText("What's new in Crosshair Z")
+  whatsNew.sub:SetText("Version " .. entry.version)
+  for _, fs in ipairs(whatsNew.lines) do
+    fs:Hide()
+  end
+  local y = 0
+  for i, line in ipairs(entry.notes or {}) do
+    local fs = whatsNew.lines[i]
+    if not fs then
+      fs = Text(whatsNew.child, 12, C.text)
+      fs:SetWordWrap(true)
+      fs:SetJustifyV("TOP")
+      fs:SetWidth(470)
+      whatsNew.lines[i] = fs
+    end
+    fs:ClearAllPoints()
+    fs:SetPoint("TOPLEFT", 12, -y)
+    fs:SetText("- " .. line)
+    fs:Show()
+    y = y + math_floor(fs:GetStringHeight()) + 8
+  end
+  whatsNew.child:SetHeight(math_max(10, y))
+  whatsNew:Show()
+end
+UI.ShowWhatsNew = ShowWhatsNew
+
+-- First install: setup wizard. After an update: What's New popup.
+function UI.CheckFirstRun()
+  local version = CZ.METADATA and CZ.METADATA["VERSION"]
+  local seen = CZ.DB.global.lastSeenVersion
+  CZ.DB.global.lastSeenVersion = version
+  if seen == nil then
+    if not CZ.DB.global.wizardDone then
+      CZ.DB.char.seenWarning = true
+      local f = CreateFrame("Frame")
+      local t = 0
+      f:SetScript("OnUpdate", function(self, elapsed)
+        t = t + elapsed
+        if t > 2 then
+          self:SetScript("OnUpdate", nil)
+          UI.OpenWizard()
+        end
+      end)
+    end
+  elseif seen ~= version then
+    local f = CreateFrame("Frame")
+    local t = 0
+    f:SetScript("OnUpdate", function(self, elapsed)
+      t = t + elapsed
+      if t > 3 then
+        self:SetScript("OnUpdate", nil)
+        if not InCombatLockdown() then
+          ShowWhatsNew()
+        end
+      end
+    end)
+  end
 end

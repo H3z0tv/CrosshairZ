@@ -1,18 +1,18 @@
 ---------------------------------------------------------------------------------------
 --                      SETTINGS: HUD, SMART CROSSHAIR, CAMERA, PROFILES             --
 ---------------------------------------------------------------------------------------
--- Option tables for the settings window. Values live in the active profile (TR.P).
+-- Option tables for the settings window. Values live in the active profile (CZ.P).
 local _G = _G
-local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+local CZ = _G.LibStub("AceAddon-3.0"):GetAddon("CrosshairZ")
 
 local ipairs = _G.ipairs
 
-TR.Config = TR.Config or {}
+CZ.Config = CZ.Config or {}
 local Features = {}
-TR.Config.Features = Features
+CZ.Config.Features = Features
 
 local function Changed()
-  TR.Profiles.Changed()
+  CZ.Profiles.Changed()
 end
 
 local function Merge(target, extra)
@@ -31,10 +31,10 @@ local function Toggle(key, name, desc, order, extra)
     desc = desc,
     order = order,
     get = function()
-      return TR.P[key]
+      return CZ.P[key]
     end,
     set = function(_, value)
-      TR.P[key] = value
+      CZ.P[key] = value
       Changed()
     end
   }, extra)
@@ -50,10 +50,10 @@ local function Range(key, name, desc, order, min, max, step, extra)
     max = max,
     step = step,
     get = function()
-      return TR.P[key]
+      return CZ.P[key]
     end,
     set = function(_, value)
-      TR.P[key] = value
+      CZ.P[key] = value
       Changed()
     end
   }, extra)
@@ -66,11 +66,11 @@ local function Color(key, name, desc, order, extra)
     desc = desc,
     order = order,
     get = function()
-      local c = TR.P[key]
+      local c = CZ.P[key]
       return c[1], c[2], c[3], 1
     end,
     set = function(_, r, g, b)
-      TR.P[key] = {r, g, b}
+      CZ.P[key] = {r, g, b}
       Changed()
     end
   }, extra)
@@ -91,15 +91,33 @@ end
 ---------------------------------------------------------------------------------------
 --                                    RETICLE HUD                                    --
 ---------------------------------------------------------------------------------------
+local function OrbSelect(key, name, desc, order, values)
+  return {
+    type = "select",
+    name = name,
+    desc = desc,
+    order = order,
+    width = 1.8,
+    values = values,
+    get = function()
+      return CZ.P[key]
+    end,
+    set = function(_, value)
+      CZ.P[key] = value
+      Changed()
+    end
+  }
+end
+
 local function HudOff()
-  return not TR.P.hudEnabled
+  return not CZ.P.hudEnabled
 end
 
 Features.hud = {
   type = "group",
   args = {
     intro = Note(
-      "Arcs around the crosshair show your health and power on the left, your target's health and cast on the right. Class resources (combo points, holy power, runes...) show as pips under it.",
+      "Arcs around the crosshair show your health and power on the left, your target's health and cast on the right. Class resources (combo points, holy power, runes...) show as animated orbs under it.",
       1),
     hudEnabled = Toggle("hudEnabled", "Enable Reticle HUD", "Shows the arcs and pips around the crosshair.", 2,
       {width = "full"}),
@@ -111,10 +129,10 @@ Features.hud = {
       width = 1.8,
       values = {combat = "Only in combat", active = "In combat or with a target", always = "Always"},
       get = function()
-        return TR.P.hudShow
+        return CZ.P.hudShow
       end,
       set = function(_, value)
-        TR.P.hudShow = value
+        CZ.P.hudShow = value
         Changed()
       end,
       disabled = HudOff
@@ -130,7 +148,7 @@ Features.hud = {
           type = "custom",
           order = 0,
           create = function(parent, width)
-            return TR.Features.CreatePreview(parent, width)
+            return CZ.Features.CreatePreview(parent, width)
           end
         },
         hudScale = Range("hudScale", "HUD Size", "Size of the arcs around the crosshair.", 1, 0.25, 2, 0.05,
@@ -143,10 +161,10 @@ Features.hud = {
           width = 1.5,
           values = {thin = "Thin", normal = "Normal", thick = "Thick"},
           get = function()
-            return TR.P.arcThickness
+            return CZ.P.arcThickness
           end,
           set = function(_, value)
-            TR.P.arcThickness = value
+            CZ.P.arcThickness = value
             Changed()
           end
         },
@@ -159,9 +177,9 @@ Features.hud = {
         hudOffsetY = Range("hudOffsetY", "Vertical Offset", "Moves the arcs up or down from the crosshair.", 6, -200,
           200, 1),
         resetLook = Button("Reset Size & Position", "Puts the settings in this box back to default.", 7, function()
-          local d = TR.FeatureDefaults
+          local d = CZ.FeatureDefaults
           for _, key in ipairs({"hudScale", "arcThickness", "hudOpacity", "hudTrackOpacity", "hudOffsetX", "hudOffsetY"}) do
-            TR.P[key] = d[key]
+            CZ.P[key] = d[key]
           end
           Changed()
         end)
@@ -190,32 +208,40 @@ Features.hud = {
     },
     pips = {
       type = "group",
-      name = "Class Resource Pips",
+      name = "Class Resources",
       inline = true,
       order = 20,
       disabled = HudOff,
       args = {
-        pipsEnabled = Toggle("pipsEnabled", "Show Resource Pips",
-          "Combo points, holy power, soul shards, chi, arcane charges, essence or runes under the crosshair.", 1,
+        pipsEnabled = Toggle("pipsEnabled", "Show Class Resources",
+          "Combo points, holy power, soul shards, chi, arcane charges, essence or runes around the crosshair.", 1,
+          {width = "full"}),
+        orbsEnabled = Toggle("orbsEnabled", "Orb Style",
+          "Draws them as animated gold-ringed orbs: a new point pops in with a flash, spent points shrink away, essence shows the next point charging and a full set glows. Off uses small dots. They show, fade and dim with the Reticle HUD (Show HUD, HUD Opacity).", 1.5,
           {width = "full"}),
         pipPlacement = {
           type = "select",
           name = "Placement",
-          desc = "Which side of the crosshair the pips sit on.",
+          desc = "Which side of the crosshair they sit on.",
           order = 2,
           width = 1.5,
           values = {below = "Below", above = "Above", left = "Left", right = "Right"},
           get = function()
-            return TR.P.pipPlacement
+            return CZ.P.pipPlacement
           end,
           set = function(_, value)
-            TR.P.pipPlacement = value
+            CZ.P.pipPlacement = value
             Changed()
           end
         },
-        pipDistance = Range("pipDistance", "Distance", "How far from the crosshair center the pips sit. Grows with HUD Size.", 3, 10, 150, 1),
-        pipSpread = Range("pipSpread", "Spacing", "Space between pips (degrees along the circle).", 4, 4, 40, 1),
-        pipSize = Range("pipSize", "Pip Size", "Size of each pip.", 5, 4, 30, 1)
+        pipDistance = Range("pipDistance", "Distance", "How far from the crosshair center they sit. Grows with HUD Size.", 3, 10, 150, 1),
+        pipSpread = Range("pipSpread", "Spacing", "Space between them (degrees along the circle).", 4, 4, 40, 1),
+        pipSize = Range("pipSize", "Size", "Size of each orb or dot.", 5, 4, 40, 1),
+        orbsColor = OrbSelect("orbsColor", "Orb Color", "Red matches the classic combo point look. Resource uses a color per class resource.",
+          6, {red = "Red", resource = "Match the resource"}),
+        orbsAnimate = Toggle("orbsAnimate", "Orb Animations",
+          "New points pop in with a flash and spent points shrink away.", 7),
+        orbsGlow = Toggle("orbsGlow", "Glow When Full", "A soft glow runs across the orbs when every point is filled.", 8)
       }
     },
     feedback = {
@@ -239,19 +265,115 @@ Features.hud = {
       inline = true,
       order = 40,
       args = {
-        testHUD = Button("Preview HUD", "Shows the arcs and pips with sample values for 5 seconds.", 1, function()
-          TR.UI.Hide()
-          TR.Features.TestHUD()
+        testHUD = Button("Preview HUD", "Shows the arcs and class resources with sample values for 5 seconds.", 1, function()
+          CZ.UI.Hide()
+          CZ.Features.TestHUD()
+          CZ.Orbs.Test()
         end),
         testHit = Button("Hit", "Plays the hit marker.", 2, function()
-          TR.Features.TestHit(false)
+          CZ.Features.TestHit(false)
         end),
         testCrit = Button("Crit", "Plays the crit marker.", 3, function()
-          TR.Features.TestHit(true)
+          CZ.Features.TestHit(true)
         end),
         testKill = Button("Kill", "Plays the kill marker.", 4, function()
-          TR.Features.TestKill()
+          CZ.Features.TestKill()
         end)
+      }
+    }
+  }
+}
+
+---------------------------------------------------------------------------------------
+--                                    ASSIST HUD                                     --
+---------------------------------------------------------------------------------------
+local function AssistOff()
+  return not CZ.P.assistEnabled
+end
+
+Features.assist = {
+  type = "group",
+  args = {
+    intro = Note(
+      "Shows the next spell the game suggests for your rotation (Assisted Combat) and an interaction prompt with your Interact key when the crosshair is on an NPC or object.",
+      1),
+    assistEnabled = Toggle("assistEnabled", "Enable Assist HUD", "Turns both prompts on or off.", 2, {width = "full"}),
+    preview = {
+      type = "custom",
+      order = 2.5,
+      create = function(parent, width)
+        return CZ.Features.CreatePreview(parent, width)
+      end
+    },
+    general = {
+      type = "group",
+      name = "General",
+      inline = true,
+      order = 5,
+      disabled = AssistOff,
+      args = {
+        assistKeybind = Toggle("assistKeybind", "Show Keybinds",
+          "Shows the key next to each prompt. While Free Look is on, mouse clicks from Click Casting are shown.", 1),
+        assistOpacity = Range("assistOpacity", "Opacity", "How visible the prompts are.", 2, 0.2, 1, 0.05,
+          {isPercent = true}),
+        preview = Button("Preview", "Shows both prompts with sample values for 5 seconds.", 3, function()
+          CZ.UI.Hide()
+          CZ.Assist.Test()
+        end),
+        move = Button("Move Prompts", "Unlocks both prompts so you can drag them anywhere. Also: /cz move", 4,
+          function()
+            CZ.Assist.SetUnlocked(true)
+          end)
+      }
+    },
+    spellGroup = {
+      type = "group",
+      name = "Next Suggested Cast",
+      inline = true,
+      order = 10,
+      disabled = AssistOff,
+      args = {
+        noSuggestions = {
+          type = "description",
+          name = "|cffE37527This game client doesn't offer cast suggestions, so this part stays hidden.|r",
+          order = 0,
+          width = "full",
+          hidden = function()
+            return CZ.Assist.HasSuggestions()
+          end
+        },
+        assistSpell = Toggle("assistSpell", "Show Suggested Cast",
+          "The spell icon the game's Assisted Combat recommends next. Greyed out when you can't cast it yet.", 1),
+        assistSpellOnlyCombat = Toggle("assistSpellOnlyCombat", "Only In Combat", "Hide the suggestion out of combat.",
+          2),
+        assistSpellSize = Range("assistSpellSize", "Icon Size", "Size of the spell icon.", 3, 16, 64, 1),
+        assistSpellX = Range("assistSpellX", "Horizontal Position", "Left or right of the crosshair.", 4, -300, 300, 1),
+        assistSpellY = Range("assistSpellY", "Vertical Position", "Above or below the crosshair.", 5, -300, 300, 1)
+      }
+    },
+    interactGroup = {
+      type = "group",
+      name = "Interaction Prompt",
+      inline = true,
+      order = 20,
+      disabled = AssistOff,
+      args = {
+        assistInteract = Toggle("assistInteract", "Show Interaction Prompt",
+          "When the crosshair is on something you can talk to or use, shows your Interact key and its name.", 1),
+        assistInteractName = Toggle("assistInteractName", "Show Name", "Shows the NPC or object name next to the prompt.",
+          2),
+        assistInteractHint = Toggle("assistInteractHint", "Show \"Press Key\" Hint",
+          "Adds \"Press F to interact\" (with your key) under the name.", 3),
+        assistInteractGlow = Toggle("assistInteractGlow", "Glow", "A soft pulsing glow behind the prompt icon.", 3.1),
+        assistInteractNameplate = Toggle("assistInteractNameplate", "Name Above Target",
+          "Shows the game's name above the NPC or object you can interact with.", 3.2),
+        assistInteractHideCombat = Toggle("assistInteractHideCombat", "Hide In Combat",
+          "Hide the prompt during combat.", 3.3),
+        assistInteractSize = Range("assistInteractSize", "Badge Size", "Size of the prompt badge.", 4, 16, 56, 1),
+        assistInteractX = Range("assistInteractX", "Horizontal Position", "Left or right of the crosshair.", 5, -300,
+          300, 1),
+        assistInteractY = Range("assistInteractY", "Vertical Position", "Above or below the crosshair.", 6, -300, 300,
+          1)
       }
     }
   }
@@ -261,7 +383,7 @@ Features.hud = {
 --                                  SMART CROSSHAIR                                  --
 ---------------------------------------------------------------------------------------
 local function SmartOff()
-  return not TR.P.smartEnabled
+  return not CZ.P.smartEnabled
 end
 
 Features.smart = {
@@ -272,6 +394,13 @@ Features.smart = {
       1),
     smartEnabled = Toggle("smartEnabled", "Enable Smart Crosshair", "Turns all features on this page on or off.", 2,
       {width = "full"}),
+    preview = {
+      type = "custom",
+      order = 2.5,
+      create = function(parent, width)
+        return CZ.Features.CreatePreview(parent, width)
+      end
+    },
     visibilityGroup = {
       type = "group",
       name = "When To Show The Crosshair",
@@ -287,10 +416,10 @@ Features.smart = {
           width = 1.6,
           values = {always = "Always", combat = "Only in combat", target = "Only with an enemy target"},
           get = function()
-            return TR.P.visibility
+            return CZ.P.visibility
           end,
           set = function(_, value)
-            TR.P.visibility = value
+            CZ.P.visibility = value
             Changed()
           end
         },
@@ -305,7 +434,7 @@ Features.smart = {
         idleSeconds = Range("idleSeconds", "Idle Time", "Seconds without input before the crosshair fades.", 8, 2, 15,
           1, {
             disabled = function()
-              return SmartOff() or not TR.P.hideIdle
+              return SmartOff() or not CZ.P.hideIdle
             end
           }),
         combatOpacity = Toggle("combatOpacity", "Combat Opacity", "Use a different opacity in and out of combat.", 9,
@@ -313,14 +442,14 @@ Features.smart = {
         opacityInCombat = Range("opacityInCombat", "In Combat", "Crosshair opacity in combat.", 10, 0, 1, 0.05, {
           isPercent = true,
           disabled = function()
-            return SmartOff() or not TR.P.combatOpacity
+            return SmartOff() or not CZ.P.combatOpacity
           end
         }),
         opacityOutCombat = Range("opacityOutCombat", "Out Of Combat", "Crosshair opacity out of combat.", 11, 0, 1,
           0.05, {
             isPercent = true,
             disabled = function()
-              return SmartOff() or not TR.P.combatOpacity
+              return SmartOff() or not CZ.P.combatOpacity
             end
           })
       }
@@ -346,10 +475,10 @@ Features.smart = {
           order = 5,
           width = 1.8,
           get = function()
-            return TR.P.rangeSpellMelee
+            return CZ.P.rangeSpellMelee
           end,
           set = function(_, value)
-            TR.P.rangeSpellMelee = value
+            CZ.P.rangeSpellMelee = value
             Changed()
           end
         },
@@ -360,10 +489,10 @@ Features.smart = {
           order = 6,
           width = 1.8,
           get = function()
-            return TR.P.rangeSpellRanged
+            return CZ.P.rangeSpellRanged
           end,
           set = function(_, value)
-            TR.P.rangeSpellRanged = value
+            CZ.P.rangeSpellRanged = value
             Changed()
           end
         }
@@ -381,7 +510,7 @@ Features.smart = {
           1, {width = "full"}),
         headFactor = Range("headFactor", "Strength", "How far the crosshair moves with zoom.", 2, 200, 3000, 50, {
           disabled = function()
-            return SmartOff() or not TR.P.headTracking
+            return SmartOff() or not CZ.P.headTracking
           end
         })
       }
@@ -398,7 +527,7 @@ Features.smart = {
           0.05, {
             isPercent = true,
             disabled = function()
-              return not TR.P.stealthVignette
+              return not CZ.P.stealthVignette
             end
           }),
         lowHealthVignette = Toggle("lowHealthVignette", "Low Health Vignette",
@@ -408,19 +537,19 @@ Features.smart = {
           0.1, 0.6, 0.05, {
             isPercent = true,
             disabled = function()
-              return not TR.P.lowHealthVignette
+              return not CZ.P.lowHealthVignette
             end
           }),
         lowHealthOpacity = Range("lowHealthOpacity", "Low Health Strength", "How strong the red edges get.", 5, 0.1,
           1, 0.05, {
             isPercent = true,
             disabled = function()
-              return not TR.P.lowHealthVignette
+              return not CZ.P.lowHealthVignette
             end
           }),
         testVignette = Button("Preview", "Shows the low health effect for 4 seconds.", 6, function()
-          TR.UI.Hide()
-          TR.Features.TestVignette()
+          CZ.UI.Hide()
+          CZ.Features.TestVignette()
         end)
       }
     }
@@ -431,20 +560,20 @@ Features.smart = {
 --                                SITUATIONAL CAMERA                                 --
 ---------------------------------------------------------------------------------------
 local function CamOff()
-  return not TR.P.camEnabled or TR.DynamicCam
+  return not CZ.P.camEnabled or CZ.DynamicCam
 end
 
 local function CamChanged()
   Changed()
-  if TR.Camera then
-    TR.Camera.Reapply()
+  if CZ.Camera then
+    CZ.Camera.Reapply()
   end
 end
 
 local function SituationGroup(sit, order)
   local key = sit.key
   local function S()
-    return TR.P.situations[key]
+    return CZ.P.situations[key]
   end
   local function Field(field, name, desc, fieldOrder, min, max, step, extra)
     return Merge({
@@ -490,7 +619,7 @@ local function SituationGroup(sit, order)
         disabled = CamOff
       },
       preview = Button("Preview Zoom", "Zooms the camera to this situation's distance now.", 2, function()
-        TR.Camera.Preview(key)
+        CZ.Camera.Preview(key)
       end, {
         width = 1.8,
         disabled = function()
@@ -513,22 +642,22 @@ local cameraArgs = {
     1),
   dynamicCamNote = {
     type = "description",
-    name = "|cffE37527A camera addon is running, so True Reticle leaves the camera alone.|r",
+    name = "|cffE37527A camera addon is running, so Crosshair Z leaves the camera alone.|r",
     order = 1.5,
     width = "full",
     hidden = function()
-      return not TR.DynamicCam
+      return not CZ.DynamicCam
     end
   },
   camEnabled = Toggle("camEnabled", "Enable Situational Camera",
-    "Lets True Reticle move the camera per situation. Turning it off restores your camera settings.", 2, {
+    "Lets Crosshair Z move the camera per situation. Turning it off restores your camera settings.", 2, {
       width = "full",
       set = function(_, value)
-        TR.P.camEnabled = value
+        CZ.P.camEnabled = value
         CamChanged()
       end,
       disabled = function()
-        return TR.DynamicCam
+        return CZ.DynamicCam
       end
     }),
   general = {
@@ -540,7 +669,7 @@ local cameraArgs = {
     args = {
       camTransition = Range("camTransition", "Transition Speed", "How fast the camera moves to a new distance.", 1,
         0.5, 3, 0.1, {set = function(_, v)
-          TR.P.camTransition = v
+          CZ.P.camTransition = v
           CamChanged()
         end}),
       camShoulder = Toggle("camShoulder", "Control Shoulder Offset", "Use each situation's shoulder offset.", 2),
@@ -556,7 +685,7 @@ local cameraArgs = {
     }
   }
 }
-for i, sit in ipairs(TR.CameraSituations) do
+for i, sit in ipairs(CZ.CameraSituations) do
   cameraArgs["sit_" .. sit.key] = SituationGroup(sit, 100 + i)
 end
 
@@ -567,7 +696,7 @@ Features.camera = {type = "group", args = cameraArgs}
 ---------------------------------------------------------------------------------------
 local function ProfileValues()
   local values = {}
-  for _, name in ipairs(TR.Profiles.List()) do
+  for _, name in ipairs(CZ.Profiles.List()) do
     values[name] = name
   end
   return values
@@ -575,8 +704,8 @@ end
 
 local function OtherProfileValues()
   local values = {}
-  local active = TR.Profiles.ActiveName()
-  for _, name in ipairs(TR.Profiles.List()) do
+  local active = CZ.Profiles.ActiveName()
+  for _, name in ipairs(CZ.Profiles.List()) do
     if name ~= active then
       values[name] = name
     end
@@ -585,7 +714,7 @@ local function OtherProfileValues()
 end
 
 local function Print(msg)
-  print(TR.Constants.BasePrintMsg .. "|cff909090: " .. msg .. "|r")
+  print(CZ.Constants.BasePrintMsg .. "|cff909090: " .. msg .. "|r")
 end
 
 function Features.BuildProfiles()
@@ -601,15 +730,16 @@ function Features.BuildProfiles()
       width = 1.8,
       values = ProfileValues,
       get = function()
-        return TR.Profiles.ActiveName()
+        return CZ.Profiles.ActiveName()
       end,
       set = function(_, value)
-        TR.Profiles.SetActive(value)
+        CZ.Profiles.SetActive(value)
       end
     },
     newProfile = {
       type = "input",
       name = "New Profile (copy of active)",
+      enterOnly = true,
       desc = "Type a name and press Enter. The new profile starts as a copy of the active one and becomes active.",
       order = 3,
       width = 1.8,
@@ -617,7 +747,7 @@ function Features.BuildProfiles()
         return ""
       end,
       set = function(_, value)
-        local ok, err = TR.Profiles.Create(value, TR.Profiles.ActiveName())
+        local ok, err = CZ.Profiles.Create(value, CZ.Profiles.ActiveName())
         if not ok and err then
           Print(err)
         end
@@ -631,12 +761,12 @@ function Features.BuildProfiles()
       width = 1.8,
       values = OtherProfileValues,
       confirm = true,
-      confirmText = TR.METADATA["TITLE"] .. "\n\nOverwrite the active profile with the selected one?",
+      confirmText = CZ.METADATA["TITLE"] .. "\n\nOverwrite the active profile with the selected one?",
       get = function()
         return nil
       end,
       set = function(_, value)
-        TR.Profiles.CopyInto(value)
+        CZ.Profiles.CopyInto(value)
       end
     },
     delete = {
@@ -651,24 +781,24 @@ function Features.BuildProfiles()
         return values
       end,
       confirm = true,
-      confirmText = TR.METADATA["TITLE"] .. "\n\nDelete the selected profile?",
+      confirmText = CZ.METADATA["TITLE"] .. "\n\nDelete the selected profile?",
       get = function()
         return nil
       end,
       set = function(_, value)
-        TR.Profiles.Delete(value)
+        CZ.Profiles.Delete(value)
       end
     },
     reset = Button("Reset Active Profile", "Puts every HUD, Smart Crosshair and Camera setting of the active profile back to default.",
       6, function()
-        TR.Profiles.ResetActive()
+        CZ.Profiles.ResetActive()
       end, {
         confirm = true,
-        confirmText = TR.METADATA["TITLE"] .. "\n\nReset the active profile to default settings?"
+        confirmText = CZ.METADATA["TITLE"] .. "\n\nReset the active profile to default settings?"
       })
   }
 
-  local specs = TR.Profiles.GetSpecs()
+  local specs = CZ.Profiles.GetSpecs()
   if #specs > 0 then
     args.specHeader = Header("Specializations", 10)
     args.useSpec = {
@@ -678,10 +808,10 @@ function Features.BuildProfiles()
       order = 11,
       width = "full",
       get = function()
-        return TR.Profiles.UsesSpecProfiles()
+        return CZ.Profiles.UsesSpecProfiles()
       end,
       set = function(_, value)
-        TR.Profiles.SetUseSpecProfiles(value)
+        CZ.Profiles.SetUseSpecProfiles(value)
       end
     }
     for i, spec in ipairs(specs) do
@@ -693,17 +823,362 @@ function Features.BuildProfiles()
         width = 1.8,
         values = ProfileValues,
         get = function()
-          local char = TR.DB.char
-          return char.trSpecProfiles and char.trSpecProfiles[spec.id] or char.trProfile
+          local char = CZ.DB.char
+          return char.czSpecProfiles and char.czSpecProfiles[spec.id] or char.czProfile
         end,
         set = function(_, value)
-          TR.Profiles.SetSpecProfile(spec.id, value)
+          CZ.Profiles.SetSpecProfile(spec.id, value)
         end,
         disabled = function()
-          return not TR.Profiles.UsesSpecProfiles()
+          return not CZ.Profiles.UsesSpecProfiles()
         end
       }
     end
   end
   return args
 end
+
+---------------------------------------------------------------------------------------
+--                        0.1.5: EXTRA OPTIONS ON EXISTING PAGES                     --
+---------------------------------------------------------------------------------------
+local function GlobalToggle(key, name, desc, order, extra, after)
+  return Merge({
+    type = "toggle",
+    name = name,
+    desc = desc,
+    order = order,
+    get = function()
+      return CZ.DB.global[key]
+    end,
+    set = function(_, value)
+      CZ.DB.global[key] = value
+      if after then
+        after(value)
+      end
+    end
+  }, extra)
+end
+
+local function GlobalSelect(key, name, desc, order, values, extra, after)
+  return Merge({
+    type = "select",
+    name = name,
+    desc = desc,
+    order = order,
+    width = 1.8,
+    values = values,
+    get = function()
+      return CZ.DB.global[key]
+    end,
+    set = function(_, value)
+      CZ.DB.global[key] = value
+      if after then
+        after(value)
+      end
+    end
+  }, extra)
+end
+
+local function KeyOption(action, name, desc, order)
+  return {
+    type = "keybinding",
+    name = name,
+    desc = desc,
+    order = order,
+    width = 1.8,
+    get = function()
+      return (_G.GetBindingKey(action))
+    end,
+    set = function(_, key)
+      local old = _G.GetBindingKey(action)
+      if old then
+        _G.SetBinding(old)
+      end
+      _G.SetBinding(key, action)
+      _G.SaveBindings(_G.GetCurrentBindingSet())
+    end
+  }
+end
+
+-- Mouse Look page
+Features.freeLookExtra = {
+  type = "group",
+  name = "More Free Look Options",
+  inline = true,
+  order = 50,
+  args = {
+    lockKey = KeyOption("CROSSHAIRZ_LOCK", "Target Lock Key",
+      "Locks your current target so the reticle stops replacing it. Unlocks when the target is gone.", 1),
+    targetLockBehavior = GlobalSelect("targetLockBehavior", "Target Lock Key Does",
+      "Toggle: press to lock, press again to unlock.\n\nSwitch Target: while locked, press to lock onto the enemy you're aiming at; press with nothing under the crosshair to unlock.",
+      2, {toggle = "Toggle lock", switch = "Switch target"}),
+    flipKey = KeyOption("CROSSHAIRZ_FLIP", "Flip Camera Key",
+      "Moves the camera to your other shoulder (when a shoulder offset is in use).", 3),
+    sheatheWithFreeLook = GlobalToggle("sheatheWithFreeLook", "Weapons Follow Free Look",
+      "Draws your weapons when Free Look turns on and puts them away when it turns off (out of combat only).", 4),
+    freelookVignette = Toggle("freelookVignette", "Free Look Vignette",
+      "Darkens the edges of the screen while Free Look is on, to keep your eyes on the center.", 5),
+    freelookVignetteOpacity = Range("freelookVignetteOpacity", "Vignette Strength", "How dark the edges get.", 6, 0.1,
+      0.8, 0.05, {
+        isPercent = true,
+        disabled = function()
+          return not CZ.P.freelookVignette
+        end
+      })
+  }
+}
+
+-- Crosshair page
+Features.crosshairExtra = {
+  type = "group",
+  name = "States & Feedback",
+  inline = true,
+  order = 50,
+  args = {
+    crosshairMountedStyle = GlobalSelect("crosshairMountedStyle", "While Mounted",
+      "What the crosshair does while mounted (when Hide While Mounted is on).", 1,
+      {hide = "Hide", dim = "Dim"}, nil, function()
+        if CZ.CreateCrosshair then
+          CZ.CreateCrosshair()
+        end
+      end),
+    crosshairDisabledStyle = GlobalSelect("crosshairDisabledStyle", "While Free Look Is Off",
+      "Hide the crosshair when Free Look is off, or keep a faint one on screen.", 2, {hide = "Hide", dim = "Dim"},
+      nil, function()
+        CZ.DisplayCrosshair(CZ.crosshairWanted)
+      end),
+    castFeedback = Toggle("castFeedback", "Cast Feedback",
+      "The crosshair reacts to your own casts: grows while casting, pulses when the cast lands, shakes when it's interrupted.",
+      3, {width = "full"}),
+    castGrow = Toggle("castGrow", "Grow While Casting", "Slowly grows during casts and channels.", 4, {
+      disabled = function()
+        return not CZ.P.castFeedback
+      end
+    }),
+    castPulse = Toggle("castPulse", "Pulse On Success", "A quick pulse when a cast finishes.", 5, {
+      disabled = function()
+        return not CZ.P.castFeedback
+      end
+    }),
+    castShake = Toggle("castShake", "Shake On Interrupt", "A short shake when your cast is interrupted.", 6, {
+      disabled = function()
+        return not CZ.P.castFeedback
+      end
+    }),
+    castTest = Button("Preview Feedback", "Plays the pulse and the shake.", 7, function()
+      CZ.UI.Hide()
+      CZ.Extras.TestFeedback()
+    end),
+    targetOutline = GlobalSelect("targetOutline", "Unit Outlines",
+      "The game's outline around units. Game Default leaves your setting alone.", 8,
+      {default = "Game default", off = "Off", hover = "Mouseover only", target = "Mouseover and target",
+       all = "Mouseover, target and group"}, nil, function()
+        CZ.Extras.ApplyTargetOutline()
+      end)
+  }
+}
+
+-- Camera page: base camera + comfort, shown above the situational settings
+local function BaseOff()
+  return not CZ.P.baseCamEnabled or CZ.DynamicCam
+end
+local function BaseChanged()
+  Changed()
+  if CZ.Camera and CZ.Camera.ApplyBase then
+    CZ.Camera.ApplyBase()
+  end
+end
+local function BaseRange(key, name, desc, order, min, max, step)
+  return Range(key, name, desc, order, min, max, step, {
+    disabled = BaseOff,
+    set = function(_, value)
+      CZ.P[key] = value
+      BaseChanged()
+    end
+  })
+end
+
+Features.camera.args.comfort = {
+  type = "group",
+  name = "Comfort",
+  inline = true,
+  order = 3,
+  args = {
+    motionSickness = GlobalToggle("motionSickness", "Motion Sickness Protection",
+      "Crosshair Z never moves the camera off-center or makes it follow head movement. Shoulder offset, head movement and the Action Camera preset are skipped. Field of view and zoom still work.",
+      1, {width = "full"}, function()
+        if CZ.Camera then
+          CZ.Camera.ApplyBase()
+          CZ.Camera.Reapply()
+        end
+        if not CZ.MotionSafe() and CZ.DB.global.actionCamera then
+          CZ.ConfigActionCamera("crosshairz")
+        end
+      end)
+  }
+}
+
+Features.camera.args.base = {
+  type = "group",
+  name = "Base Camera",
+  inline = true,
+  order = 4,
+  args = {
+    baseCamEnabled = Toggle("baseCamEnabled", "Use These Camera Settings",
+      "Applies the field of view, max zoom, zoom speed and head tracking below. Turning it off restores your previous camera settings.",
+      1, {
+        width = "full",
+        set = function(_, value)
+          CZ.P.baseCamEnabled = value
+          BaseChanged()
+        end
+      }),
+    baseFov = BaseRange("baseFov", "Field Of View", "How wide the camera sees (degrees).", 2, 50, 90, 1),
+    baseMaxZoom = BaseRange("baseMaxZoom", "Max Zoom Distance", "How far the camera can zoom out (yards).", 3, 15, 39, 0.5),
+    baseZoomSpeed = BaseRange("baseZoomSpeed", "Zoom Scroll Speed", "How fast the mouse wheel zooms.", 4, 1, 50, 1),
+    baseHead = BaseRange("baseHead", "Head Tracking Strength",
+      "How much the camera follows your character's head movement. Skipped with Motion Sickness Protection.", 5, 0, 2,
+      0.1)
+  }
+}
+
+---------------------------------------------------------------------------------------
+--                                  MACRO COMPOSER                                   --
+---------------------------------------------------------------------------------------
+-- Builds a /cast macro aimed the way you choose and saves it to your macro list.
+local TARGETS = {
+  crosshair = {"Crosshair (reticle) target", "[@softenemy,exists,harm,nodead][@target,harm,nodead][]"},
+  mouseover = {"Mouseover", "[@mouseover,exists,nodead][]"},
+  cursor = {"Cursor (ground spells)", "[@cursor]"},
+  heal = {"Friendly: mouseover, target, then you", "[@mouseover,help,nodead][@target,help,nodead][@player]"},
+  focus = {"Focus", "[@focus,exists,nodead][]"},
+  player = {"Yourself", "[@player]"},
+  target = {"Normal target", ""}
+}
+
+local function Composer()
+  local c = CZ.DB.global.composer
+  if not c then
+    c = {name = "CZ_Macro", spell = "", target = "crosshair", tooltip = true, stopcasting = false, perChar = false}
+    CZ.DB.global.composer = c
+  end
+  return c
+end
+
+function Features.ComposeMacroText()
+  local c = Composer()
+  local spell = (c.spell or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  if spell == "" then
+    return ""
+  end
+  local lines = {}
+  if c.tooltip then
+    lines[#lines + 1] = "#showtooltip"
+  end
+  if c.stopcasting then
+    lines[#lines + 1] = "/stopcasting"
+  end
+  local cond = TARGETS[c.target] and TARGETS[c.target][2] or ""
+  lines[#lines + 1] = "/cast " .. (cond ~= "" and (cond .. " ") or "") .. spell
+  return table.concat(lines, "\n")
+end
+
+local function SaveMacro()
+  local c = Composer()
+  local body = Features.ComposeMacroText()
+  if body == "" then
+    Print("type a spell name first.")
+    return
+  end
+  if _G.InCombatLockdown() then
+    Print("macros can't be saved in combat.")
+    return
+  end
+  local name = (c.name or "CZ_Macro"):sub(1, 16)
+  local index = _G.GetMacroIndexByName and _G.GetMacroIndexByName(name) or 0
+  local ok, err
+  if index and index > 0 then
+    ok, err = pcall(_G.EditMacro, index, name, nil, body)
+  else
+    ok, err = pcall(_G.CreateMacro, name, "INV_MISC_QUESTIONMARK", body, c.perChar and true or nil)
+  end
+  if ok then
+    Print("macro |r" .. name .. "|cff909090 saved. Drag it from the macro window (/macro) to your action bar.|r")
+  else
+    Print("couldn't save the macro: " .. tostring(err))
+  end
+end
+
+local function ComposerInput(key, name, desc, order, width)
+  return {
+    type = "input",
+    name = name,
+    desc = desc,
+    order = order,
+    width = width or 1.8,
+    get = function()
+      return Composer()[key]
+    end,
+    set = function(_, value)
+      Composer()[key] = value
+    end
+  }
+end
+
+local function ComposerToggle(key, name, desc, order)
+  return {
+    type = "toggle",
+    name = name,
+    desc = desc,
+    order = order,
+    get = function()
+      return Composer()[key]
+    end,
+    set = function(_, value)
+      Composer()[key] = value
+    end
+  }
+end
+
+local targetValues = {}
+for key, v in pairs(TARGETS) do
+  targetValues[key] = v[1]
+end
+
+Features.composer = {
+  type = "group",
+  args = {
+    intro = Note(
+      "Make a macro that casts a spell at the unit you choose: the enemy under your crosshair, your mouseover, the ground at your cursor, and more. Save it, then drag it from the macro window to your bars.",
+      1),
+    spell = ComposerInput("spell", "Spell", "Spell name exactly as in your spellbook.", 2),
+    name = ComposerInput("name", "Macro Name", "Up to 16 characters. Saving again with the same name updates the macro.", 3),
+    target = {
+      type = "select",
+      name = "Cast At",
+      desc = "Who or where the spell goes.",
+      order = 4,
+      width = 1.8,
+      values = targetValues,
+      get = function()
+        return Composer().target
+      end,
+      set = function(_, value)
+        Composer().target = value
+      end
+    },
+    tooltip = ComposerToggle("tooltip", "Show Spell Icon", "Adds #showtooltip so the macro shows the spell's icon and cooldown.", 5),
+    stopcasting = ComposerToggle("stopcasting", "Stop Current Cast First",
+      "Adds /stopcasting so this spell interrupts whatever you're casting.", 6),
+    perChar = ComposerToggle("perChar", "Character Macro", "Save it to this character's macros instead of the general ones.", 7),
+    preview = {
+      type = "custom",
+      order = 8,
+      create = function(parent, width)
+        return CZ.UI.CreateMacroPreview(parent, width)
+      end
+    },
+    save = Button("Save Macro", "Creates the macro, or updates it if one with this name exists.", 9, SaveMacro,
+      {width = "full"})
+  }
+}

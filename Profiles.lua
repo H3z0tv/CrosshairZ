@@ -4,14 +4,14 @@
 -- Profiles hold the settings of the Reticle HUD, Smart Crosshair and Situational Camera.
 -- Each character picks a profile, optionally one per specialization.
 local _G = _G
-local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+local CZ = _G.LibStub("AceAddon-3.0"):GetAddon("CrosshairZ")
 
 local pairs = _G.pairs
 local ipairs = _G.ipairs
 local type = _G.type
 
 local Profiles = {}
-TR.Profiles = Profiles
+CZ.Profiles = Profiles
 
 local DEFAULT_NAME = "Default"
 
@@ -19,7 +19,7 @@ local DEFAULT_NAME = "Default"
 --                                 FEATURE DEFAULTS                                  --
 ---------------------------------------------------------------------------------------
 -- Camera situations, highest priority first. Only the first matching one applies.
-TR.CameraSituations = {
+CZ.CameraSituations = {
   {key = "dead", name = "Dead / Ghost", desc = "While dead or running back as a ghost."},
   {key = "taxi", name = "Flight Path", desc = "While on a flight master taxi."},
   {key = "skyriding", name = "Skyriding", desc = "While gliding or skyriding. Zoom grows with your speed when Dynamic Skyriding Zoom is on."},
@@ -42,7 +42,7 @@ local function Situation(enabled, zoom, shoulder, fov, head)
   return {enabled = enabled, zoom = zoom, shoulder = shoulder, fov = fov, head = head}
 end
 
-TR.FeatureDefaults = {
+CZ.FeatureDefaults = {
   -- Reticle HUD
   hudEnabled = true,
   hudScale = 0.5,
@@ -70,6 +70,44 @@ TR.FeatureDefaults = {
   killBloom = true,
   killBloomSize = 1.0,
 
+  -- Assist HUD
+  assistEnabled = true,
+  assistOpacity = 1.0,
+  assistKeybind = true,
+  assistSpell = true,
+  assistSpellOnlyCombat = true,
+  assistSpellSize = 34,
+  assistSpellX = -72,
+  assistSpellY = 0,
+  assistInteract = true,
+  assistInteractName = true,
+  assistInteractHint = true,
+  assistInteractGlow = false,
+  assistInteractNameplate = true,
+  assistInteractHideCombat = true,
+  assistInteractSize = 28,
+  assistInteractX = 72,
+  assistInteractY = 0,
+
+  -- Resource Orbs (class points)
+  orbsEnabled = true,
+  orbsColor = "red",
+  orbsAnimate = true,
+  orbsGlow = true,
+
+  -- Crosshair cast feedback
+  castFeedback = true,
+  castGrow = true,
+  castPulse = true,
+  castShake = true,
+
+  -- Base camera (applies when the Situational Camera is off, or for what it doesn't control)
+  baseCamEnabled = false,
+  baseFov = 90,
+  baseMaxZoom = 28.5,
+  baseZoomSpeed = 20,
+  baseHead = 0.5,
+
   -- Smart Crosshair
   smartEnabled = true,
   visibility = "always", -- always | combat | target
@@ -96,6 +134,8 @@ TR.FeatureDefaults = {
   lowHealthVignette = false,
   lowHealthThreshold = 0.30,
   lowHealthOpacity = 0.5,
+  freelookVignette = false,
+  freelookVignetteOpacity = 0.35,
 
   -- Situational Camera
   camEnabled = false,
@@ -154,18 +194,18 @@ local function FillMissing(target, defaults)
 end
 
 local function Store()
-  local global = TR.DB.global
-  global.trProfiles = global.trProfiles or {}
-  if not global.trProfiles[DEFAULT_NAME] then
-    global.trProfiles[DEFAULT_NAME] = DeepCopy(TR.FeatureDefaults)
+  local global = CZ.DB.global
+  global.czProfiles = global.czProfiles or {}
+  if not global.czProfiles[DEFAULT_NAME] then
+    global.czProfiles[DEFAULT_NAME] = DeepCopy(CZ.FeatureDefaults)
   end
-  return global.trProfiles
+  return global.czProfiles
 end
 
 local function CharData()
-  local char = TR.DB.char
-  char.trProfile = char.trProfile or DEFAULT_NAME
-  char.trSpecProfiles = char.trSpecProfiles or {}
+  local char = CZ.DB.char
+  char.czProfile = char.czProfile or DEFAULT_NAME
+  char.czSpecProfiles = char.czSpecProfiles or {}
   return char
 end
 
@@ -219,7 +259,7 @@ function Profiles.Notify()
   for _, fn in ipairs(listeners) do
     local ok, err = pcall(fn)
     if not ok then
-      TR.DebugPrint("Profile listener error: " .. tostring(err))
+      CZ.DebugPrint("Profile listener error: " .. tostring(err))
     end
   end
 end
@@ -228,11 +268,11 @@ function Profiles.ActiveName()
   local store = Store()
   local char = CharData()
   local name
-  if char.trUseSpecProfiles then
+  if char.czUseSpecProfiles then
     local spec = Profiles.CurrentSpecID()
-    name = spec and char.trSpecProfiles[spec]
+    name = spec and char.czSpecProfiles[spec]
   end
-  name = name or char.trProfile
+  name = name or char.czProfile
   if not store[name] then
     name = DEFAULT_NAME
   end
@@ -258,16 +298,31 @@ function Profiles.Resolve()
     profile.hudOnlyActive = nil
     profile.schema = 3
   end
-  FillMissing(profile, TR.FeatureDefaults)
-  TR.P = profile
-  TR.ActiveProfileName = name
+  -- 0.1.5: the prompt is now a plain icon; its green glow is off unless turned back on
+  if (profile.schema or 0) < 4 then
+    profile.assistInteractGlow = false
+    profile.schema = 4
+  end
+  -- 0.1.7: Resource Orbs replace the resource pips; they stay off if the pips were off
+  if (profile.schema or 0) < 5 then
+    profile.orbsEnabled = profile.pipsEnabled ~= false
+    profile.schema = 5
+  end
+  if (profile.schema or 0) < 6 then
+    -- early 0.1.7 builds had separate orb position and size settings
+    profile.orbsX, profile.orbsY, profile.orbsSize, profile.orbsSpacing = nil, nil, nil, nil
+    profile.schema = 6
+  end
+  FillMissing(profile, CZ.FeatureDefaults)
+  CZ.P = profile
+  CZ.ActiveProfileName = name
   Profiles.Notify()
 end
 
 function Profiles.Init()
   Store()
   CharData()
-  TR.P = nil
+  CZ.P = nil
   Profiles.Resolve()
 
   local f = _G.CreateFrame("Frame")
@@ -277,13 +332,13 @@ function Profiles.Init()
     if event == "PLAYER_SPECIALIZATION_CHANGED" and unit and unit ~= "player" then
       return
     end
-    local before = TR.ActiveProfileName
+    local before = CZ.ActiveProfileName
     Profiles.Resolve()
-    if event == "PLAYER_SPECIALIZATION_CHANGED" and before ~= TR.ActiveProfileName then
-      print(TR.Constants.BasePrintMsg .. "|cff909090: profile |r" .. TR.ActiveProfileName .. "|cff909090 loaded.|r")
+    if event == "PLAYER_SPECIALIZATION_CHANGED" and before ~= CZ.ActiveProfileName then
+      print(CZ.Constants.BasePrintMsg .. "|cff909090: profile |r" .. CZ.ActiveProfileName .. "|cff909090 loaded.|r")
     end
-    if TR.UI and TR.UI.Refresh then
-      TR.UI.Refresh()
+    if CZ.UI and CZ.UI.Refresh then
+      CZ.UI.Refresh()
     end
   end)
 end
@@ -315,22 +370,22 @@ function Profiles.SetActive(name)
     return
   end
   local char = CharData()
-  if char.trUseSpecProfiles then
+  if char.czUseSpecProfiles then
     local spec = Profiles.CurrentSpecID()
     if spec then
-      char.trSpecProfiles[spec] = name
+      char.czSpecProfiles[spec] = name
     else
-      char.trProfile = name
+      char.czProfile = name
     end
   else
-    char.trProfile = name
+    char.czProfile = name
   end
   Profiles.Resolve()
 end
 
 function Profiles.SetSpecProfile(specID, name)
   local char = CharData()
-  char.trSpecProfiles[specID] = (name ~= "" and name) or nil
+  char.czSpecProfiles[specID] = (name ~= "" and name) or nil
   Profiles.Resolve()
 end
 
@@ -344,7 +399,7 @@ function Profiles.Create(name, copyFrom)
     return false, "A profile with that name already exists."
   end
   local source = copyFrom and store[copyFrom]
-  store[name] = source and DeepCopy(source) or DeepCopy(TR.FeatureDefaults)
+  store[name] = source and DeepCopy(source) or DeepCopy(CZ.FeatureDefaults)
   Profiles.SetActive(name)
   return true
 end
@@ -367,12 +422,12 @@ function Profiles.Delete(name)
   end
   store[name] = nil
   local char = CharData()
-  if char.trProfile == name then
-    char.trProfile = DEFAULT_NAME
+  if char.czProfile == name then
+    char.czProfile = DEFAULT_NAME
   end
-  for spec, profileName in pairs(char.trSpecProfiles) do
+  for spec, profileName in pairs(char.czSpecProfiles) do
     if profileName == name then
-      char.trSpecProfiles[spec] = nil
+      char.czSpecProfiles[spec] = nil
     end
   end
   Profiles.Resolve()
@@ -381,19 +436,19 @@ end
 
 function Profiles.ResetActive()
   local store = Store()
-  store[Profiles.ActiveName()] = DeepCopy(TR.FeatureDefaults)
+  store[Profiles.ActiveName()] = DeepCopy(CZ.FeatureDefaults)
   Profiles.Resolve()
 end
 
 function Profiles.SetUseSpecProfiles(enabled)
   local char = CharData()
-  char.trUseSpecProfiles = enabled and true or false
+  char.czUseSpecProfiles = enabled and true or false
   if enabled then
     -- start every spec on the profile the character uses now
-    local current = char.trProfile
+    local current = char.czProfile
     for _, spec in ipairs(Profiles.GetSpecs()) do
-      if not char.trSpecProfiles[spec.id] then
-        char.trSpecProfiles[spec.id] = current
+      if not char.czSpecProfiles[spec.id] then
+        char.czSpecProfiles[spec.id] = current
       end
     end
   end
@@ -401,5 +456,5 @@ function Profiles.SetUseSpecProfiles(enabled)
 end
 
 function Profiles.UsesSpecProfiles()
-  return CharData().trUseSpecProfiles and true or false
+  return CharData().czUseSpecProfiles and true or false
 end

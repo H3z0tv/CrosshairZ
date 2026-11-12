@@ -3,19 +3,75 @@
 ---------------------------------------------------------------------------------------
 -- Shown on the Patch Notes page of the settings window. Newest first.
 local _G = _G
-local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+local CZ = _G.LibStub("AceAddon-3.0"):GetAddon("CrosshairZ")
 
-TR.Changelog = {
+CZ.Changelog = {
   {
-    version = "0.1.2",
-    date = "2026-11-06",
+    version = "0.1.7",
+    date = "2026-11-09",
     notes = {
+      "Resource Orbs: the class resource dots around the reticle (combo points for Rogue and Druid, holy power, soul shards, chi, arcane charges, essence, runes) are now gold-ringed orbs. Same spot and same Placement, Distance, Spacing and Size controls as the old dots. All settings are on the Reticle HUD page under Class Resources, and the HUD preview shows the orbs.",
+      "Animated: a new point pops in with a flash and a striped shine, spent points shrink away one after another, essence shows the next point charging, and a full set glows softly.",
+      "The orbs are part of the Reticle HUD: they show, fade and dim with it, so Show HUD, HUD Opacity, HUD Size and Offset all apply, and they hide out of combat the same way the dots did. Choose red orbs or a color per resource.",
+      "Turn Orb Style off to go back to the small dots. If you had the dots turned off, the orbs start off too."
+    }
+  },
+  {
+    version = "0.1.6",
+    date = "2026-11-08",
+    notes = {
+      "Tooltips During Mouse Look (Mouse Look page): Hide, Show, or show only while holding Shift, Ctrl or Alt. When shown, you get the tooltip of whatever is under the crosshair.",
+      "Tooltip Position: next to the crosshair or at the game's default tooltip position."
+    }
+  },
+  {
+    version = "0.1.5",
+    date = "2026-11-08",
+    notes = {
+      "Fixed: the interaction prompt showed an empty badge on lootable corpses. Prompts now show Crosshair Z's own bag, speech bubble and gear icons in a flat teal style, without the ring and background; the glow is off by default.",
+      "Setup Wizard on first install: Free Look key, crosshair style, HUD and camera in a few steps. Run it again any time with /cz wizard or the Setup Wizard button.",
+      "What's New popup on the first login after an update.",
+      "25 new Crosshair Z crosshair styles and a style browser on the Crosshair page: click a style to use it.",
+      "Crosshair states: dim or hide the crosshair while mounted, and hide or keep a faint crosshair while Free Look is off.",
+      "Crosshair cast feedback: grows while you cast or channel, pulses when the cast lands, shakes when it's interrupted.",
+      "Weapons can follow Free Look: drawn when it turns on, put away when it turns off (out of combat).",
+      "Free Look vignette: darker screen edges while Free Look is on, with adjustable strength.",
+      "Base Camera: field of view, max zoom distance, zoom scroll speed and head tracking strength.",
+      "Motion Sickness Protection: Crosshair Z never moves the camera off-center or makes it follow head movement.",
+      "Target Lock keybind: keeps your current target while you aim elsewhere. Choose Toggle or Switch Target behavior.",
+      "Flip Camera keybind: moves the camera to your other shoulder.",
+      "Unit Outlines option for the game's outline around mouseover, target and group units.",
+      "Macro Composer: build a cast macro aimed at your crosshair target, mouseover, cursor, focus or yourself and save it in one click."
+    }
+  },
+  {
+    version = "0.1.4",
+    date = "2026-11-07",
+    notes = {
+      "Interaction prompt shows a bag icon and Press F to loot on corpses you can loot. NPCs show Press F to talk, objects Press F to interact."
+    }
+  },
+  {
+    version = "0.1.3",
+    date = "2026-11-07",
+    notes = {
+      "True Reticle is now Crosshair Z: new name, new logo, new commands /cz, /crosshairz and /czundo.",
+      "Fixed: the suggested cast ignored Only In Combat and the Show Suggested Cast switch and stayed on screen.",
+      "A PREVIEW label shows under the crosshair while the settings window is open, so preview elements aren't mistaken for real ones.",
+      "Live editing: while the settings window is open, the crosshair, Reticle HUD and Assist HUD stay on screen with sample values, so every change shows the moment you make it. Hide rules like Only in combat pause while you edit.",
+      "Preview box with the crosshair, arcs and Assist HUD prompts at the top of the Crosshair, Smart Crosshair, Reticle HUD and Assist HUD pages.",
+      "The settings window opens on the left side so the middle of the screen stays visible.",
+      "Text fields in the settings window now save when you click away, switch pages or close the window, not only on Enter. Esc still cancels.",
       "New Reticle HUD: arcs around the crosshair show your health and power on the left and your target's health and cast on the right. The target arc glows when an enemy is in execute range.",
       "HUD Size & Position: size from 25% to 200%, thin, normal or thick arcs, background ring strength, and horizontal and vertical offsets. Pips can sit below, above, left or right, with adjustable distance, spacing and size, and no longer overlap the arcs.",
       "Live preview of the crosshair, arcs and pips at the top of the HUD Size & Position settings.",
       "Show HUD: only in combat (default), in combat or with a target, or always.",
       "Class resource pips under the crosshair: combo points, holy power, soul shards, chi, arcane charges, essence and runes.",
       "Hit and kill feedback: a hit marker flashes on the crosshair when you deal damage (bigger and gold on crits), and a red marker with a glow when your enemy dies.",
+      "New Assist HUD: the next spell the game suggests for your rotation (Assisted Combat) shows as an icon next to the crosshair with its keybind (or your mouse click while in Free Look), and an interaction prompt shows your Interact key and the name when the crosshair is on an NPC or object. Size, position, opacity and combat options for both.",
+      "Interaction prompt now reads Press F to interact (with your key) under the name, glows softly, and the game shows the name above the NPC or object you can interact with.",
+      "Assist HUD prompts can be moved: Move Prompts button or /cz move, drag them, then press Done.",
+      "New installs start with the Dot crosshair and middle mouse button as the Free Look toggle (only if nothing else is bound to it).",
       "New Smart Crosshair: the crosshair turns green in melee range, yellow in ranged range and red when nothing reaches. Range spells are picked from your spellbook automatically, or you can set your own.",
       "Crosshair hide rules: show always, only in combat or only with an enemy target, and hide in flight form, when idle, without a target, on friendly or dead targets, or when out of range.",
       "Combat opacity: separate crosshair opacity in and out of combat.",
@@ -34,15 +90,15 @@ TR.Changelog = {
     notes = {
       "New settings window: sidebar navigation, Home page with quick actions, Patch Notes, theme and panel scale.",
       "New option: Show Target Circle (Reticle Targeting, on by default). Turns the circle under your target back on at every login, including on WoW: Forever.",
-      "New True Reticle logo (addon list icon, settings window and About page).",
-      "True Reticle colors are now green to match the logo."
+      "New Crosshair Z logo (addon list icon, settings window and About page).",
+      "Crosshair Z colors are now green to match the logo."
     }
   },
   {
     version = "0.1.0",
     date = "2026-11-06",
     notes = {
-      "First release of True Reticle.",
+      "First release of Crosshair Z.",
       "Supports Retail Midnight (12.1.5) and WoW: Forever from one download.",
       "Free Look: turn the camera with the mouse without holding right click (toggle or hold keybind).",
       "Reticle Targeting: aim the crosshair at enemies to target them; @mouseover and @cursor macros work with the crosshair.",

@@ -6,15 +6,15 @@ local _G = _G
 local AceAddon = _G.LibStub("AceAddon-3.0")
 
 -- RETRIEVING ADDON TABLE
-local TR = AceAddon:GetAddon("TrueReticle")
+local CZ = AceAddon:GetAddon("CrosshairZ")
 
-TR.Constants = {}
+CZ.Constants = {}
 
 ---------------------------------------------------------------------------------------
 --                                        CVARS                                      --
 ---------------------------------------------------------------------------------------
 -- CVARS FOR RETICLE TARGETING
-TR.Constants.ReticleTargetingCVarValues = {
+CZ.Constants.ReticleTargetingCVarValues = {
   -- SoftTarget General
   ["interactKeyWarningTutorial"] = 1, -- Hides the interact key tutorial if using the INTERACTMOUSEOVER binding
   ["deselectOnClick"] = 1, -- Disables Sticky Targeting. We never want this w/ soft targeting, as it interferes w/ SoftTargetForce
@@ -46,7 +46,7 @@ TR.Constants.ReticleTargetingCVarValues = {
 
 -- CVARS FOR ACTION CAMERA
 -- https://warcraft.wiki.gg/wiki/CVar_ActionCam
-TR.Constants.ActionCameraCVarValues = {
+CZ.Constants.ActionCameraCVarValues = {
   ["test_cameraDynamicPitch"] = 1, -- Vertical Pitch
   ["test_cameraDynamicPitchBaseFovPad"] = 0, -- Pitch (ground)
   ["test_cameraDynamicPitchBaseFovPadFlying"] = 0.5, -- Pitch (flying)
@@ -59,7 +59,7 @@ TR.Constants.ActionCameraCVarValues = {
 }
 
 -- CVARS FOR STICKY CROSSHAIR / TARGET FOCUS
-TR.Constants.TagetFocusCVarValues = {
+CZ.Constants.TagetFocusCVarValues = {
   ["test_cameraTargetFocusEnemyEnable"] = 1,
   ["test_cameraTargetFocusEnemyStrengthYaw"] = 0.7, -- horizontal strength
   ["test_cameraTargetFocusEnemyStrengthPitch"] = 0.2 -- vertical strength
@@ -67,7 +67,7 @@ TR.Constants.TagetFocusCVarValues = {
 
 -- DEFAULT BLIZZARD VALUES
 -- !! DO NOT CHANGE !!
-TR.Constants.BlizzardReticleTargetingCVarValues = {
+CZ.Constants.BlizzardReticleTargetingCVarValues = {
   ["SoftTargetEnemy"] = 1,
   ["SoftTargetEnemyArc"] = 2,
   ["SoftTargetEnemyRange"] = 45,
@@ -79,7 +79,7 @@ TR.Constants.BlizzardReticleTargetingCVarValues = {
   ["CursorStickyCentering"] = 0
 }
 
-TR.Constants.BlizzardActionCameraCVarValues = {
+CZ.Constants.BlizzardActionCameraCVarValues = {
   ["test_cameraDynamicPitch"] = 0,
   ["test_cameraDynamicPitchBaseFovPad"] = 0.4,
   ["test_cameraDynamicPitchBaseFovPadFlying"] = 0.75,
@@ -91,7 +91,7 @@ TR.Constants.BlizzardActionCameraCVarValues = {
   ["CameraReduceUnexpectedMovement"] = 1
 }
 
-TR.Constants.BlizzardTagetFocusCVarValues = {
+CZ.Constants.BlizzardTagetFocusCVarValues = {
   ["test_cameraTargetFocusEnemyEnable"] = 0,
   ["test_cameraTargetFocusEnemyStrengthYaw"] = 0.4,
   ["test_cameraTargetFocusEnemyStrengthPitch"] = 0.5
@@ -100,22 +100,22 @@ TR.Constants.BlizzardTagetFocusCVarValues = {
 ---------------------------------------------------------------------------------------
 --                                       MACROS                                      --
 ---------------------------------------------------------------------------------------
--- For interrupts/taunts we use TR_PrioritizeTarge
--- For everything else we wannna macro, we use TR_PrioritizeCursor
-TR.Constants.Macros = {
-  TR_ClearTarget = "/stopmacro [noexists]\n/cleartarget",
-  TR_ClearFocus = "/stopmacro [noexists]\n/clearfocus",
-  TR_CastCursor = "#showtooltip\n/cast [mod:shift] SPELL; [@cursor] SPELL",
-  TR_PrioritizeTarget = "#showtooltip\n/cleartarget [help][noharm][dead]\n/cast [@target,harm,nodead][@mouseover,harm,nodead] SPELL\n/startattack",
-  TR_PrioritizeCursor = "#showtooltip\n/cleartarget [help][noharm][dead]\n/cast [@mouseover,harm,nodead][@target,harm,nodead] SPELL\n/startattack",
-  TR_PrioritizeCursorShift = "#showtooltip [mod:shift] SPELL_1; SPELL_2\n/cleartarget [help][noharm][dead]\n/cast [mod:shift,@mouseover,harm,nodead][mod:shift,@target,harm,nodead] SPELL_1; [@mouseover,harm,nodead][@target,harm,nodead] SPELL_2\n/startattack",
+-- For interrupts/taunts we use CZ_PrioritizeTarge
+-- For everything else we wannna macro, we use CZ_PrioritizeCursor
+CZ.Constants.Macros = {
+  CZ_ClearTarget = "/stopmacro [noexists]\n/cleartarget",
+  CZ_ClearFocus = "/stopmacro [noexists]\n/clearfocus",
+  CZ_CastCursor = "#showtooltip\n/cast [mod:shift] SPELL; [@cursor] SPELL",
+  CZ_PrioritizeTarget = "#showtooltip\n/cleartarget [help][noharm][dead]\n/cast [@target,harm,nodead][@mouseover,harm,nodead] SPELL\n/startattack",
+  CZ_PrioritizeCursor = "#showtooltip\n/cleartarget [help][noharm][dead]\n/cast [@mouseover,harm,nodead][@target,harm,nodead] SPELL\n/startattack",
+  CZ_PrioritizeCursorShift = "#showtooltip [mod:shift] SPELL_1; SPELL_2\n/cleartarget [help][noharm][dead]\n/cast [mod:shift,@mouseover,harm,nodead][mod:shift,@target,harm,nodead] SPELL_1; [@mouseover,harm,nodead][@target,harm,nodead] SPELL_2\n/startattack",
 }
 
 ---------------------------------------------------------------------------------------
 --                                  REGISTERED EVENTS                                --
 ---------------------------------------------------------------------------------------
 -- EVENTS TO BE TRACKED
-TR.Constants.BLIZZARD_EVENTS = {
+CZ.Constants.BLIZZARD_EVENTS = {
   -- Events that fire UnlockFreeLook()
   UNLOCK_EVENTS = {
     "LOADING_SCREEN_ENABLED", -- This forces a relock when quick-loading (e.g: loading after starting m+ run) thanks to the OnUpdate fn
@@ -151,30 +151,30 @@ TR.Constants.BLIZZARD_EVENTS = {
 ---------------------------------------------------------------------------------------
 --                                        ASSETS                                     --
 ---------------------------------------------------------------------------------------
-TR.Constants.PopupMsg = TR.METADATA["TITLE"] ..
-                          "\n\n|cffffd700Thank you for trying out True Reticle!|r \n\n|cffcfcfcfUpon closing this, an |cffB47EDEoptions panel|r will open where you'll be able to configure the addon to your liking.|r\n\n|cff909090To |cffFF5050undo all changes|r made by True Reticle, type the following command in chat:|r\n|cff00FFFF/trundo|r"
+CZ.Constants.PopupMsg = CZ.METADATA["TITLE"] ..
+                          "\n\n|cffffd700Thank you for trying out Crosshair Z!|r \n\n|cffcfcfcfUpon closing this, an |cffB47EDEoptions panel|r will open where you'll be able to configure the addon to your liking.|r\n\n|cff909090To |cffFF5050undo all changes|r made by Crosshair Z, type the following command in chat:|r\n|cff00FFFF/czundo|r"
 
-TR.Constants.BasePrintMsg = TR.METADATA["TITLE"] .. " |cff00ff00v." .. TR.METADATA["VERSION"] .. "|r"
+CZ.Constants.BasePrintMsg = CZ.METADATA["TITLE"] .. " |cff00ff00v." .. CZ.METADATA["VERSION"] .. "|r"
 
-local assetsFolderPath = "Interface\\AddOns\\TrueReticle\\assets\\"
+local assetsFolderPath = "Interface\\AddOns\\CrosshairZ\\assets\\"
 
-TR.Constants.Logo = assetsFolderPath .. "trlogo.tga"
+CZ.Constants.Logo = assetsFolderPath .. "czlogo.tga"
 
-TR.Constants.PulseAtlas = "dragonflight-landingbutton-circleglow"
+CZ.Constants.PulseAtlas = "dragonflight-landingbutton-circleglow"
 
 --[[
   CROSSHAIR TEXTURES
   To add custom textures, you'll need two .BLP textures: one for the active and one for the inactive states.
-  Place them in the the TrueReticle/assets folder and rename them as follows:
+  Place them in the the CrosshairZ/assets folder and rename them as follows:
   Base texture = "crosshairASSETNAME.blp"
   Hit texture = "crosshairASSETNAME-hit.blp"
   Where "ASSETNAME" is the name you want to be displayed on the dropdown.
   Then just add that same "ASSETNAME" to the CrosshairTextureObj table below:
   This is case sensitive!
 ]] --
-TR.Constants.CrosshairTextureObj = {}
+CZ.Constants.CrosshairTextureObj = {}
 
-TR.Constants.CrosshairAppearanceSelectValues = {}
+CZ.Constants.CrosshairAppearanceSelectValues = {}
 
 local crosshairAssetNames = {
   "Arrows",
@@ -193,16 +193,31 @@ local crosshairAssetNames = {
 }
 
 for _, assetName in ipairs(crosshairAssetNames) do
-  TR.Constants.CrosshairTextureObj[assetName] = {
+  CZ.Constants.CrosshairTextureObj[assetName] = {
     Name = assetName,
     Base = assetsFolderPath .. "crosshair" .. assetName .. ".blp",
     Active = assetsFolderPath .. "crosshair" .. assetName .. "-hit.blp"
   }
-  TR.Constants.CrosshairAppearanceSelectValues[assetName] = assetName
+  CZ.Constants.CrosshairAppearanceSelectValues[assetName] = assetName
+end
+
+-- Crosshair Z styles (assets/styles/<Name>.tga and <Name>-hit.tga)
+CZ.Constants.CrosshairStyleNames = {
+  "Ring", "RingDot", "GapCross", "ThinCross", "CrossDot", "Chevron", "Brackets", "Corners", "QuadArcs", "TriArcs",
+  "Halo", "Scope", "Plus", "XMark", "Diamond", "DiamondDot", "Triangle", "Hexagon", "Dashes", "TShape", "VShape",
+  "Pips", "BigDot", "TinyDot", "ZMark"
+}
+for _, styleName in ipairs(CZ.Constants.CrosshairStyleNames) do
+  CZ.Constants.CrosshairTextureObj[styleName] = {
+    Name = styleName,
+    Base = assetsFolderPath .. "styles\\" .. styleName .. ".tga",
+    Active = assetsFolderPath .. "styles\\" .. styleName .. "-hit.tga"
+  }
+  CZ.Constants.CrosshairAppearanceSelectValues[styleName] = styleName
 end
 
 -- CROSSHAIR REACTION COLORS
-TR.Constants.CrosshairReactionColors = {
+CZ.Constants.CrosshairReactionColors = {
   hostile = {1, .2, 0.3, 1}, -- red
   friendly = {0, 1, 0.3, .8}, -- green
   object = {1, 0.8, 0.2, .8}, -- yellow
@@ -214,9 +229,12 @@ TR.Constants.CrosshairReactionColors = {
 --                                   FRAME WATCHING                                  --
 ---------------------------------------------------------------------------------------
 -- Default frames to check with a static name
-TR.Constants.FramesToCheck = {
-  -- True Reticle settings window
-  "TrueReticleOptionsFrame",
+CZ.Constants.FramesToCheck = {
+  -- Crosshair Z settings window
+  "CrosshairZOptionsFrame",
+  "CrosshairZAssistMover",
+  "CrosshairZWizard",
+  "CrosshairZWhatsNew",
   "ColorPickerFrame",
   -- Blizzard frames
   "AchievementFrame",
@@ -377,16 +395,16 @@ TR.Constants.FramesToCheck = {
 }
 
 -- Default frames to check with a dynamic name: any frame containing a string defined here will be matched, e.g. "OPieRT" will match the frame "OPieRT-1234-5678"
-TR.Constants.WildcardFramesToMatch = {
+CZ.Constants.WildcardFramesToMatch = {
   "OPieRT"
 }
 
 -- The dynamic names of the frames defined right above, determined on loading into the game world. Do not add frame names in this table, do it above instead!
-TR.Constants.WildcardFramesToCheck = {}
+CZ.Constants.WildcardFramesToCheck = {}
 
 -- Vendor mounts to force UnlockFreeLook
 -- Vendor mount spell IDs (language independent)
-TR.Constants.MountSpellIDsToCheck = {
+CZ.Constants.MountSpellIDsToCheck = {
   122708, -- Grand Expedition Yak
   61425, -- Traveler's Tundra Mammoth (Alliance)
   61447, -- Traveler's Tundra Mammoth (Horde)
@@ -394,7 +412,7 @@ TR.Constants.MountSpellIDsToCheck = {
 }
 
 -- Vendor mount names (English fallback)
-TR.Constants.MountsToCheck = {
+CZ.Constants.MountsToCheck = {
   "Grand Expedition Yak",
   "Traveler's Tundra Mammoth",
   "Mighty Caravan Brutosaur"
@@ -404,7 +422,7 @@ TR.Constants.MountsToCheck = {
 --                                   BUTTON OVERRIDE                                 --
 ---------------------------------------------------------------------------------------
 -- The name of the actions a user can bind to mouse buttons
-TR.Constants.ActionsToProcess = {
+CZ.Constants.ActionsToProcess = {
   "ACTIONBUTTON1",
   "ACTIONBUTTON2",
   "ACTIONBUTTON3",
@@ -548,13 +566,13 @@ TR.Constants.ActionsToProcess = {
 }
 
 -- Matches the bindable actions values defined right above with more readable names for the UI
-TR.Constants.OverrideActions = {
+CZ.Constants.OverrideActions = {
   CLEARFOCUS = "|cff69ccf0Clear Focus|r",
   CLEARTARGET = "|cff69ccf0Clear Target|r",
   MACRO = "|cff69ccf0Run MACRO|r"
 }
 
-TR.Constants.ButtonsToOverride = {
+CZ.Constants.ButtonsToOverride = {
   "button1",
   "button2",
   "shiftbutton1",
@@ -618,7 +636,7 @@ local DefaultBindings = {
     macroName = ""
   },
   toggle = {
-    key = "True Reticle Toggle",
+    key = "Crosshair Z Toggle",
     value = "BUTTON3"
   },
   hold = {
@@ -627,7 +645,7 @@ local DefaultBindings = {
   }
 }
 
-TR.Constants.DatabaseDefaults = {
+CZ.Constants.DatabaseDefaults = {
   global = {
     frameWatching = true,
     watchlist = {
@@ -646,9 +664,15 @@ TR.Constants.DatabaseDefaults = {
     crosshairMounted = false,
     hideTooltip = true,
     targetCircle = true,
+    motionSickness = false,
+    crosshairMountedStyle = "hide",
+    crosshairDisabledStyle = "hide",
+    targetLockBehavior = "toggle",
+    sheatheWithFreeLook = false,
+    targetOutline = "default",
     uiTheme = "Green",
     panelScale = 0.9,
-    crosshairAppearance = TR.Constants.CrosshairTextureObj.Default,
+    crosshairAppearance = CZ.Constants.CrosshairTextureObj.Dot,
     crosshairSize = 64,
     crosshairOpacity = 1.0,
     crosshairY = 50,

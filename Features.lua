@@ -3,13 +3,13 @@
 ---------------------------------------------------------------------------------------
 -- Arcs around the crosshair (player health/power, target health/cast), class resource
 -- pips, hit and kill feedback, range colors, crosshair hide rules, head tracking and
--- screen vignettes. Settings come from the active profile (TR.P).
+-- screen vignettes. Settings come from the active profile (CZ.P).
 --
 -- Midnight note: unit health/power and many unit queries can return "secret" values in
 -- instances and combat. Secret values are never compared or used in math here; they are
 -- only handed to StatusBars, which are allowed to display them.
 local _G = _G
-local TR = _G.LibStub("AceAddon-3.0"):GetAddon("TrueReticle")
+local CZ = _G.LibStub("AceAddon-3.0"):GetAddon("CrosshairZ")
 
 local CreateFrame = _G.CreateFrame
 local GetTime = _G.GetTime
@@ -26,9 +26,9 @@ local math_rad = _G.math.rad
 local math_sin = _G.math.sin
 
 local F = {}
-TR.Features = F
+CZ.Features = F
 
-local TEX = "Interface\\AddOns\\TrueReticle\\assets\\hud\\"
+local TEX = "Interface\\AddOns\\CrosshairZ\\assets\\hud\\"
 
 local issecret = _G.issecretvalue or function()
   return false
@@ -111,11 +111,12 @@ end
 ---------------------------------------------------------------------------------------
 --                                    HUD FRAMES                                     --
 ---------------------------------------------------------------------------------------
-local hud = CreateFrame("Frame", "TrueReticleHUD", UIParent)
+local hud = CreateFrame("Frame", "CrosshairZHUD", UIParent)
 hud:SetSize(128, 128)
 hud:SetPoint("CENTER")
 hud:Hide()
 hud.alpha = 0
+F.hud = hud
 
 local function MakeArc(texture, side, level, owner)
   owner = owner or hud
@@ -200,7 +201,7 @@ for i = 1, MAX_PIPS do
 end
 
 -- Hit / kill effects live on their own frame so they still show when arcs are hidden
-local fx = CreateFrame("Frame", "TrueReticleFX", UIParent)
+local fx = CreateFrame("Frame", "CrosshairZFX", UIParent)
 fx:SetSize(64, 64)
 fx:SetPoint("CENTER")
 fx:SetFrameStrata("HIGH")
@@ -215,7 +216,7 @@ bloomTex:SetPoint("CENTER")
 bloomTex:SetAlpha(0)
 
 -- Full-screen vignette (below the interface, above the world)
-local vignette = CreateFrame("Frame", "TrueReticleVignette", UIParent)
+local vignette = CreateFrame("Frame", "CrosshairZVignette", UIParent)
 vignette:SetAllPoints(UIParent)
 vignette:SetFrameStrata("BACKGROUND")
 vignette:SetFrameLevel(0)
@@ -228,11 +229,22 @@ vignette.alpha = 0
 ---------------------------------------------------------------------------------------
 --                                   TEST MODE                                       --
 ---------------------------------------------------------------------------------------
+-- Label shown under the crosshair while the settings window is open (live preview)
+local previewLabel = CreateFrame("Frame", "CrosshairZPreviewLabel", UIParent)
+previewLabel:SetSize(400, 30)
+previewLabel:SetFrameStrata("HIGH")
+local previewText = previewLabel:CreateFontString(nil, "OVERLAY")
+previewText:SetFont(_G.STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+previewText:SetPoint("CENTER")
+previewText:SetTextColor(0.486, 1, 0.31)
+previewText:SetText("PREVIEW  -  close the settings window to see real behavior")
+previewLabel:Hide()
+
 local testUntil = 0
 local vignetteTestUntil = 0
 
 local function Testing()
-  return GetTime() < testUntil
+  return GetTime() < testUntil or (CZ.IsLiveEditing and CZ.IsLiveEditing())
 end
 
 function F.TestHUD()
@@ -328,7 +340,7 @@ local lastLayoutSize, lastAnchorY, lastAnchorX, lastThickness, lastTrack
 
 local function LayoutHUD(P)
   local size = math_floor(128 * (P.hudScale or 1) + 0.5)
-  local y = (TR.GetCrosshairY and TR.GetCrosshairY() or 0) + (P.hudOffsetY or 0)
+  local y = (CZ.GetCrosshairY and CZ.GetCrosshairY() or 0) + (P.hudOffsetY or 0)
   local x = P.hudOffsetX or 0
   local thickness = P.arcThickness or "normal"
   if thickness ~= lastThickness then
@@ -363,6 +375,8 @@ local function LayoutHUD(P)
     fx:SetPoint("CENTER", UIParent, "CENTER", 0, y - (P.hudOffsetY or 0))
   end
 end
+
+F.ClassResource = ClassResource
 
 local function PowerColor()
   local _, token = Call(_G.UnitPowerType, "player")
@@ -418,7 +432,8 @@ local function UpdateCast(unit, P, now)
 end
 
 local function UpdatePips(P, active)
-  if not P.pipsEnabled then
+  -- the Resource Orbs replace these small dots while they are on
+  if not P.pipsEnabled or P.orbsEnabled then
     for _, pip in ipairs(pips) do
       pip:Hide()
     end
@@ -468,7 +483,7 @@ local function UpdatePips(P, active)
 end
 
 local function UpdateHUD(elapsed, now)
-  local P = TR.P
+  local P = CZ.P
   if not P then
     return
   end
@@ -481,7 +496,7 @@ local function UpdateHUD(elapsed, now)
 
   LayoutHUD(P)
 
-  local crosshairShown = TR.CrosshairTexture and TR.CrosshairTexture:IsShown() and TR.DB.global.crosshair
+  local crosshairShown = CZ.CrosshairTexture and CZ.CrosshairTexture:IsShown() and CZ.DB.global.crosshair
   local unit = HudTargetUnit()
   local inCombat = InCombat()
   local healthPct = HealthPct("player")
@@ -501,7 +516,7 @@ local function UpdateHUD(elapsed, now)
   local want = (crosshairShown or testing) and active
 
   -- fade in / out
-  local target = want and ((P.hudOpacity or 0.9) * (TR.crosshairAlphaMult or 1)) or 0
+  local target = want and ((P.hudOpacity or 0.9) * (CZ.crosshairAlphaMult or 1)) or 0
   if testing then
     target = P.hudOpacity or 0.9
   end
@@ -629,10 +644,45 @@ function F.CreatePreview(parent, width)
     dots[i] = dot
   end
 
+  -- Assist HUD samples (suggested cast + interaction prompt)
+  local aSpell = CreateFrame("Frame", nil, box)
+  aSpell.icon = aSpell:CreateTexture(nil, "ARTWORK")
+  aSpell.icon:SetPoint("TOPLEFT", 2, -2)
+  aSpell.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+  aSpell.icon:SetTexture(136243)
+  aSpell.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  aSpell.rim = aSpell:CreateTexture(nil, "OVERLAY")
+  aSpell.rim:SetTexture(TEX .. "iconframe")
+  aSpell.rim:SetAllPoints()
+  aSpell.rim:SetVertexColor(0.486, 1, 0.31)
+
+  local aPrompt = CreateFrame("Frame", nil, box)
+  aPrompt.glow = aPrompt:CreateTexture(nil, "BACKGROUND", nil, -1)
+  aPrompt.glow:SetTexture(TEX .. "bloom")
+  aPrompt.glow:SetBlendMode("ADD")
+  aPrompt.glow:SetPoint("CENTER")
+  aPrompt.glow:SetVertexColor(0.486, 1, 0.31, 1)
+
+  aPrompt.icon = aPrompt:CreateTexture(nil, "ARTWORK")
+  aPrompt.icon:SetTexture(TEX .. "icon_talk")
+  aPrompt.icon:SetPoint("CENTER")
+  aPrompt.name = aPrompt:CreateFontString(nil, "OVERLAY")
+  aPrompt.name:SetFont(_G.STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+  aPrompt.name:SetPoint("LEFT", aPrompt, "RIGHT", 8, 0)
+  aPrompt.name:SetTextColor(1, 0.92, 0.75)
+  aPrompt.name:SetText("Silvermoon Guard")
+  aPrompt.hint = aPrompt:CreateFontString(nil, "OVERLAY")
+  aPrompt.hint:SetFont(_G.STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+  aPrompt.hint:SetPoint("TOPLEFT", aPrompt.name, "BOTTOMLEFT", 0, -3)
+  aPrompt.hint:SetTextColor(0.8, 0.82, 0.86)
+  aPrompt.hint:SetText("Press |cff7CFF4FF|r to interact")
+
+  local orbRow = CZ.Orbs.NewRow(stage)
+  orbRow:SetPoint("CENTER", stage, "CENTER", 0, 0)
   local elapsedTotal = 0
 
   function box.Refresh()
-    local P = TR.P
+    local P = CZ.P
     if not P then
       return
     end
@@ -644,8 +694,8 @@ function F.CreatePreview(parent, width)
     stage:SetAlpha(P.hudEnabled and (P.hudOpacity or 0.9) or 0.25)
 
     -- crosshair as configured in the Crosshair page
-    local appearance = TR.DB.global.crosshairAppearance
-    local cSize = TR.DB.global.crosshairSize or 64
+    local appearance = CZ.DB.global.crosshairAppearance
+    local cSize = CZ.DB.global.crosshairSize or 64
     crosshair:SetSize(cSize, cSize)
     crosshair:SetTexture(appearance and appearance.Active or nil)
     local tint = P.smartEnabled and P.rangeColors and P.colorMelee
@@ -654,7 +704,7 @@ function F.CreatePreview(parent, width)
     else
       crosshair:SetVertexColor(1, 0.2, 0.3, 1)
     end
-    crosshair:SetAlpha(TR.DB.global.crosshair and (TR.DB.global.crosshairOpacity or 1) or 0.2)
+    crosshair:SetAlpha(CZ.DB.global.crosshair and (CZ.DB.global.crosshairOpacity or 1) or 0.2)
 
     local track = P.hudTrackOpacity or 0.75
     for _, arc in pairs(p) do
@@ -703,15 +753,53 @@ function F.CreatePreview(parent, width)
       else
         dot:SetVertexColor(0.15, 0.15, 0.18, 0.7)
       end
-      dot:SetShown(P.pipsEnabled)
+      dot:SetShown(P.pipsEnabled and not P.orbsEnabled)
     end
+
+    -- orbs (same arc as the dots)
+    orbRow:SetShown(P.pipsEnabled and P.orbsEnabled)
+    orbRow:Layout(5, pipSize, dist, step, CZ.Orbs.CENTER_ANGLE[P.pipPlacement] or 270)
+
+    -- crosshair visibility setting
+    crosshair:SetShown(CZ.DB.global.crosshair and true or false)
+
+    -- Assist HUD
+    local assistOn = P.assistEnabled
+    local opacity = P.assistOpacity or 1
+    local s = P.assistSpellSize or 34
+    aSpell:SetSize(s, s)
+    aSpell:ClearAllPoints()
+    aSpell:SetPoint("CENTER", box, "CENTER", P.assistSpellX or -72, P.assistSpellY or 0)
+    aSpell:SetAlpha(opacity)
+    aSpell:SetShown(assistOn and P.assistSpell)
+
+    local b = P.assistInteractSize or 28
+    aPrompt:SetSize(b, b)
+    aPrompt.icon:SetSize(b, b)
+    aPrompt.glow:SetSize(b * 2.6, b * 2.6)
+    aPrompt:ClearAllPoints()
+    aPrompt:SetPoint("CENTER", box, "CENTER", P.assistInteractX or 72, P.assistInteractY or 0)
+    aPrompt:SetAlpha(opacity)
+    aPrompt.name:SetShown(P.assistInteractName)
+    aPrompt.hint:SetShown(P.assistInteractHint)
+    aPrompt.glow:SetShown(P.assistInteractGlow)
+    aPrompt:SetShown(assistOn and P.assistInteract)
   end
 
-  -- the cast arc and execute glow animate while the preview is visible
+  -- the cast arc, execute glow and prompt glow animate while the preview is visible
   box:SetScript("OnUpdate", function(_, elapsed)
     elapsedTotal = elapsedTotal + elapsed
     p.cast.SetValues((elapsedTotal % 2) / 2, 1)
     glow:SetAlpha(0.45 + 0.35 * math_sin(elapsedTotal * 6))
+    aPrompt.glow:SetAlpha(0.55 + 0.35 * math_sin(elapsedTotal * 4))
+    local P = CZ.P
+    if P and P.pipsEnabled and P.orbsEnabled then
+      local O = CZ.Orbs
+      local r, g, b = O.OrbColor(P, O.DEMO_COLOR[1], O.DEMO_COLOR[2], O.DEMO_COLOR[3])
+      local animate = P.orbsAnimate ~= false
+      orbRow:SetState(O.DemoCount(elapsedTotal), 5, r, g, b, false, animate)
+      orbRow:Tick(animate and elapsed or 1, elapsedTotal, animate and P.orbsGlow)
+    end
   end)
 
   return box, height
@@ -726,7 +814,7 @@ local lastPlayerAction = 0
 local lastKill = 0
 
 local function PlayHit(crit)
-  local P = TR.P
+  local P = CZ.P
   hitAnim.t = 0
   if crit then
     hitAnim.duration, hitAnim.scale = 0.26, 1.35
@@ -738,7 +826,7 @@ local function PlayHit(crit)
 end
 
 local function PlayKill()
-  local P = TR.P
+  local P = CZ.P
   hitAnim.t = 0
   hitAnim.duration, hitAnim.scale = 0.4, 1.7
   hitAnim.r, hitAnim.g, hitAnim.b = 1, 0.3, 0.2
@@ -757,7 +845,7 @@ function F.TestKill()
 end
 
 local function UpdateEffects(elapsed)
-  local base = (TR.DB and TR.DB.global.crosshairSize or 64)
+  local base = (CZ.DB and CZ.DB.global.crosshairSize or 64)
 
   if hitAnim.t < 1 then
     hitAnim.t = math_min(1, hitAnim.t + elapsed / hitAnim.duration)
@@ -801,7 +889,7 @@ local function TrackUnit(unit)
     local now = GetTime()
     if now - lastKill > 0.4 and InCombat() then
       lastKill = now
-      if TR.P and TR.P.killConfirm then
+      if CZ.P and CZ.P.killConfirm then
         PlayKill()
       end
     end
@@ -816,7 +904,7 @@ local function AutoAttacking()
 end
 
 local function OnUnitCombat(unit, action, descriptor)
-  local P = TR.P
+  local P = CZ.P
   if not (P and P.hitConfirm) then
     return
   end
@@ -864,7 +952,7 @@ end
 -- Picks a few of the player's own harmful spells as melee / ranged range probes
 function F.RebuildRangeProbes()
   meleeProbes, rangedProbes = {}, {}
-  local P = TR.P
+  local P = CZ.P
   local C_Spell, C_SpellBook = _G.C_Spell, _G.C_SpellBook
   if P then
     local melee = SpellIDFromInput(P.rangeSpellMelee)
@@ -907,7 +995,7 @@ function F.RebuildRangeProbes()
       end
     end
   end
-  TR.DebugPrint("Range probes: " .. #meleeProbes .. " melee, " .. #rangedProbes .. " ranged")
+  CZ.DebugPrint("Range probes: " .. #meleeProbes .. " melee, " .. #rangedProbes .. " ranged")
 end
 
 local function ProbeRange(list, unit)
@@ -989,6 +1077,9 @@ local function UpdateIdle(elapsed)
 end
 
 local function DesiredCrosshairMult(P, elapsed)
+  if CZ.IsLiveEditing and CZ.IsLiveEditing() then
+    return 1 -- show the crosshair while the settings window is open
+  end
   local inCombat = InCombat()
   local unit = HudTargetUnit()
 
@@ -1031,8 +1122,8 @@ end
 
 local function UpdateHeadTracking(P, elapsed)
   if not P.headTracking then
-    if (TR.crosshairExtraY or 0) ~= 0 then
-      TR.SetCrosshairExtraY(0)
+    if (CZ.crosshairExtraY or 0) ~= 0 then
+      CZ.SetCrosshairExtraY(0)
     end
     headZoom = nil
     return
@@ -1048,12 +1139,12 @@ local function UpdateHeadTracking(P, elapsed)
   end
   -- zero at 15 yards, higher when the camera is close, a little lower when far
   local dy = factor / math_max(3, headZoom) - factor / 15
-  TR.SetCrosshairExtraY(math_floor(dy + 0.5))
+  CZ.SetCrosshairExtraY(math_floor(dy + 0.5))
 end
 
 local function UpdateSmart(elapsed, rangeTick)
-  local P = TR.P
-  if not P or not TR.SetCrosshairAlphaMultiplier then
+  local P = CZ.P
+  if not P or not CZ.SetCrosshairAlphaMultiplier then
     return
   end
 
@@ -1061,9 +1152,9 @@ local function UpdateSmart(elapsed, rangeTick)
     if smartWasOn then
       smartWasOn = false
       smartMult = 1
-      TR.SetCrosshairAlphaMultiplier(1)
-      TR.SetCrosshairTint(nil)
-      TR.SetCrosshairExtraY(0)
+      CZ.SetCrosshairAlphaMultiplier(1)
+      CZ.SetCrosshairTint(nil)
+      CZ.SetCrosshairExtraY(0)
     end
     return
   end
@@ -1077,9 +1168,9 @@ local function UpdateSmart(elapsed, rangeTick)
                       ((rangeState == "melee" and P.colorMelee) or (rangeState == "ranged" and P.colorRanged) or
                         (rangeState == "out" and P.colorOutOfRange))
       if color then
-        TR.SetCrosshairTint(color[1], color[2], color[3], 1)
+        CZ.SetCrosshairTint(color[1], color[2], color[3], 1)
       else
-        TR.SetCrosshairTint(nil)
+        CZ.SetCrosshairTint(nil)
       end
     end
   end
@@ -1089,9 +1180,9 @@ local function UpdateSmart(elapsed, rangeTick)
   if math_abs(want - nextMult) < 0.01 then
     nextMult = want
   end
-  if math_abs(nextMult - smartMult) > 0.001 or nextMult ~= TR.crosshairAlphaMult then
+  if math_abs(nextMult - smartMult) > 0.001 or nextMult ~= CZ.crosshairAlphaMult then
     smartMult = nextMult
-    TR.SetCrosshairAlphaMultiplier(smartMult)
+    CZ.SetCrosshairAlphaMultiplier(smartMult)
   end
 
   UpdateHeadTracking(P, elapsed)
@@ -1101,7 +1192,7 @@ end
 --                                    VIGNETTES                                      --
 ---------------------------------------------------------------------------------------
 local function UpdateVignette(elapsed, now)
-  local P = TR.P
+  local P = CZ.P
   if not P then
     return
   end
@@ -1120,6 +1211,10 @@ local function UpdateVignette(elapsed, now)
     elseif P.stealthVignette and Bool(_G.IsStealthed) then
       r, g, b = 0.32, 0.12, 0.5
       target = P.stealthOpacity or 0.6
+    elseif P.freelookVignette and CZ.crosshairWanted then
+      -- darker screen edges while Free Look is on
+      r, g, b = 0, 0, 0
+      target = P.freelookVignetteOpacity or 0.35
     end
   end
 
@@ -1140,10 +1235,19 @@ local driver = CreateFrame("Frame")
 local sinceHUD, sinceRange, sinceKill = 0, 0, 0
 
 local function OnUpdate(_, elapsed)
-  if not TR.P or not TR.DB then
+  if not CZ.P or not CZ.DB then
     return
   end
   local now = GetTime()
+  local editing = CZ.IsLiveEditing and CZ.IsLiveEditing()
+  if editing then
+    previewLabel:ClearAllPoints()
+    local y = (CZ.GetCrosshairY and CZ.GetCrosshairY() or 0) - 130
+    previewLabel:SetPoint("CENTER", UIParent, "CENTER", 0, y)
+    previewLabel:Show()
+  elseif previewLabel:IsShown() then
+    previewLabel:Hide()
+  end
   UpdateEffects(elapsed)
   UpdateVignette(elapsed, now)
 
@@ -1164,17 +1268,17 @@ local function OnUpdate(_, elapsed)
     end
     local ok, err = pcall(UpdateSmart, step, rangeTick)
     if not ok then
-      TR.DebugPrint("Smart crosshair error: " .. tostring(err))
+      CZ.DebugPrint("Smart crosshair error: " .. tostring(err))
     end
     ok, err = pcall(UpdateHUD, step, now)
     if not ok then
-      TR.DebugPrint("HUD error: " .. tostring(err))
+      CZ.DebugPrint("HUD error: " .. tostring(err))
     end
   end
 
   if sinceKill >= 0.1 then
     sinceKill = 0
-    if TR.P.killConfirm then
+    if CZ.P.killConfirm then
       TrackUnit("target")
       TrackUnit("softenemy")
     end
@@ -1206,7 +1310,7 @@ function F.Enable()
   driver:SetScript("OnUpdate", OnUpdate)
   probesDirty = true
 
-  TR.Profiles.OnChange(function()
+  CZ.Profiles.OnChange(function()
     lastLayoutSize, lastAnchorY, lastAnchorX, lastThickness, lastTrack = nil, nil, nil, nil, nil
     rangeState = "refresh"
     probesDirty = true
@@ -1218,9 +1322,9 @@ function F.Disable()
   driver:UnregisterAllEvents()
   hud:Hide()
   vignetteTex:SetAlpha(0)
-  if TR.SetCrosshairAlphaMultiplier then
-    TR.SetCrosshairAlphaMultiplier(1)
-    TR.SetCrosshairTint(nil)
-    TR.SetCrosshairExtraY(0)
+  if CZ.SetCrosshairAlphaMultiplier then
+    CZ.SetCrosshairAlphaMultiplier(1)
+    CZ.SetCrosshairTint(nil)
+    CZ.SetCrosshairExtraY(0)
   end
 end

@@ -1,0 +1,38 @@
+## Interface: 120105, 16001
+## Version: 1.0.0
+## Title: Crosshair |cff7CFF4FZ|r
+## Author: H3z0
+## Notes: Action-camera combat: free look, reticle targeting, mouse-click casting, a crosshair HUD and a situational camera.
+## IconTexture: Interface\AddOns\CrosshairZ\media\logo
+## SavedVariables: CrosshairZData
+## OptionalDeps: Ace3
+## Category: Combat
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceAddon-3.0\AceAddon-3.0.lua
+Libs\AceEvent-3.0\AceEvent-3.0.lua
+Libs\AceDB-3.0\AceDB-3.0.lua
+Libs\AceConsole-3.0\AceConsole-3.0.lua
+
+core\Init.lua
+core\Data.lua
+modules\Look.lua
+modules\Aim.lua
+modules\Clicks.lua
+modules\Lock.lua
+modules\Tooltip.lua
+modules\Reticle.lua
+modules\Hud.lua
+modules\Effects.lua
+modules\Assist.lua
+modules\Camera.lua
+modules\Composer.lua
+ui\Widgets.lua
+ui\Panel.lua
+ui\Pages.lua
+ui\Share.lua
+ui\Starter.lua
+ui\Notes.lua
+ui\Home.lua
+core\Boot.lua

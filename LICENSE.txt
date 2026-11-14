@@ -1,0 +1,16 @@
+Crosshair Z
+Copyright (c) 2026 H3z0. All Rights Reserved.
+
+This addon, including its code, artwork, logo and name, is the property of H3z0.
+
+You may download, install and use Crosshair Z for your own personal use in World of Warcraft.
+
+Without prior written permission from H3z0, you may not:
+- copy, modify, merge, or create derivative works from this addon or any part of it;
+- redistribute, re-upload, mirror, or publish this addon or any part of it, modified or unmodified;
+- sell, sublicense, or otherwise commercially exploit this addon;
+- use the Crosshair Z name or logo for other projects.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+
+Third-party libraries in the Libs folder remain under their own licenses. See NOTICE.txt.

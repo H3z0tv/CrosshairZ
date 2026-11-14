@@ -1,0 +1,16 @@
+<Bindings>
+	<Binding name="CROSSHAIRZ_LOOK" header="CROSSHAIRZ" category="ADDONS">
+		CrosshairZ.Look.KeyToggle()
+	</Binding>
+	<Binding name="CROSSHAIRZ_HOLD" category="ADDONS" runOnUp="true">
+		CrosshairZ.Look.KeyHold(keystate)
+	</Binding>
+	<Binding name="CROSSHAIRZ_LOCK" category="ADDONS">
+		CrosshairZ.Lock.Key()
+	</Binding>
+	<Binding name="CROSSHAIRZ_FLIP" category="ADDONS">
+		CrosshairZ.Camera.Flip()
+	</Binding>
+	<Binding name="CLICK CrosshairZNextEnemy:LeftButton" category="ADDONS"></Binding>
+	<Binding name="CLICK CrosshairZPrevEnemy:LeftButton" category="ADDONS"></Binding>
+</Bindings>

@@ -1,0 +1,7 @@
+Crosshair Z includes these third-party libraries in the Libs folder. They are not part of
+Crosshair Z's own code and stay under their own licenses.
+
+- LibStub, by the LibStub team (public domain)
+- CallbackHandler-1.0, by the Ace3 Development Team
+- AceAddon-3.0, AceEvent-3.0, AceDB-3.0, AceConsole-3.0 (Ace3), Copyright (c) 2007 Ace3 Development Team.
+  All rights reserved. Used under the Ace3 license: https://www.wowace.com/projects/ace3

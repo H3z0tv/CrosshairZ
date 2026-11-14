@@ -14,7 +14,7 @@ Crosshair Z - Changelog
 - Move Prompts works again: the prompts stay under your mouse while you drag, sample prompts show while moving, and the saved place is right at any prompt size.
 - Interaction prompt redone: a hopping bag when you can loot, a speech bubble with typing dots when you can talk, a turning gear for objects, and just your interact key on a key cap under it. The name is optional (Show Name).
 - Arc Thickness is now a slider with six steps.
-- Interaction prompt: a brush-stroke circle sweeps in around the icon and slowly turns while the prompt is up.
+- Interaction prompt: a brush-stroke circle sweeps in around the icon and slowly turns while the prompt is up. Prompts fade in and out instead of popping.
 - When Aim Mode turns off, the cursor comes back where you left it instead of the middle of the screen.
 - Crosshair HUD redesigned: two crescents on each side close almost into a circle around the crosshair, thickest in the middle and tapering at the ends, with a dark rim so they read on any ground and a soft neon glow. Your health and power on the left, your target's health and cast on the right, health percent beside each side. Options: Arc Style (smooth or with quarter marks), Neon Glow, Show Percent, Arc Thickness.
 - 24 new crosshair styles with a dark rim so they stay visible on any background. The crosshair now sits above your character by default.

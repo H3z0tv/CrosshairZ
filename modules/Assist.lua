@@ -8,6 +8,7 @@ local A = Z.Module("Assist")
 
 local TEAL = {0.3, 0.9, 0.85}
 local moving = false
+local FadeTo
 local dragging = false
 
 ---------------------------------------------------------------------------
@@ -249,6 +250,45 @@ end
 ---------------------------------------------------------------------------
 -- Updating
 ---------------------------------------------------------------------------
+-- Fades a prompt toward an opacity; it hides itself once fully faded out
+local FADE_IN, FADE_OUT = 7, 5
+local fader = CreateFrame("Frame")
+local fading = {}
+fader:SetScript("OnUpdate", function(_, e)
+  for f in pairs(fading) do
+    local speed = f.fadeGoal > f.fadeNow and FADE_IN or FADE_OUT
+    local step = e * speed * math.max(0.25, math.abs(f.fadeGoal - f.fadeNow) + 0.25)
+    if f.fadeNow < f.fadeGoal then
+      f.fadeNow = math.min(f.fadeGoal, f.fadeNow + step)
+    else
+      f.fadeNow = math.max(f.fadeGoal, f.fadeNow - step)
+    end
+    f:SetAlpha(f.fadeNow)
+    if f.fadeNow == f.fadeGoal then
+      fading[f] = nil
+      if f.fadeGoal <= 0 then
+        f:Hide()
+      end
+    end
+  end
+end)
+
+FadeTo = function(f, goal)
+  f.fadeNow = f.fadeNow or 0
+  if goal > 0 and not f:IsShown() then
+    f.fadeNow = 0
+    f:SetAlpha(0)
+    f:Show()
+  end
+  if goal <= 0 and not f:IsShown() then
+    return
+  end
+  if f.fadeGoal ~= goal or f.fadeNow ~= goal then
+    f.fadeGoal = goal
+    fading[f] = true
+  end
+end
+
 local function Place()
   local p = Z.P.assist
   local y = Z.CrosshairY()
@@ -273,7 +313,7 @@ local function UpdateSpell(preview)
   local id = preview and 133 or NextSpell()
   local show = moving or (p.enabled and p.spell and id and (preview or not p.spellCombat or Z.InCombat()))
   if not show then
-    spell:Hide()
+    FadeTo(spell, 0)
     return
   end
   local tex = C_Spell and C_Spell.GetSpellTexture and Z.Call(C_Spell.GetSpellTexture, id)
@@ -293,8 +333,8 @@ local function UpdateSpell(preview)
   else
     spell.mouse:Hide()
   end
-  spell:SetAlpha(p.opacity)
-  spell:Show()
+  FadeTo(spell, p.opacity)
+  
 end
 
 local function InteractKey()
@@ -307,12 +347,12 @@ local ICONS = {loot = "icon_bag", talk = "icon_bubble", use = "icon_use"}
 local function UpdatePrompt(preview)
   local p = Z.P.assist
   if not moving and (not p.enabled or not p.prompt) then
-    prompt:Hide()
+    FadeTo(prompt, 0)
     return
   end
   local unit = "softinteract"
   if not (preview or Z.Truthy(UnitExists, unit)) then
-    prompt:Hide()
+    FadeTo(prompt, 0)
     return
   end
   local kind = "talk"
@@ -350,8 +390,8 @@ local function UpdatePrompt(preview)
     prompt.name:Hide()
   end
   prompt.glow:SetShown(p.promptGlow)
-  prompt:SetAlpha(p.opacity)
-  prompt:Show()
+  FadeTo(prompt, p.opacity)
+  
 end
 
 local function Update()
